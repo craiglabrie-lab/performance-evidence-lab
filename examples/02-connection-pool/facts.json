@@ -1,0 +1,3048 @@
+{
+  "run": {
+    "project": "SYN-SHOP",
+    "environment": "PERF-A",
+    "tool": "generic load tool export",
+    "run_id": "SYN-RUN-002",
+    "start_utc": "2026-10-08T10:00:00Z",
+    "duration_min": 45,
+    "previous_run": "SYN-RUN-001"
+  },
+  "question": "Can the checkout journey support 500 concurrent users at 90+ transactions/second with checkout p95 at or under 2.0 seconds?",
+  "generated_by": "tools/analyze.py (deterministic; no model involved)",
+  "windows": [
+    "min 0-9",
+    "min 10-18",
+    "min 19-39",
+    "min 40-44"
+  ],
+  "window_rule": "Default windows: intended ramp-up, steady state split at the first minute any acceptance criterion fails, and ramp-down.",
+  "inventory": [
+    {
+      "file": "transactions.csv",
+      "present": true,
+      "timestamps": "UTC",
+      "limitations": "p95 values are per generator per minute; they cannot be averaged into a run-level p95.",
+      "rows": 264,
+      "range_utc": [
+        "2026-10-08T10:00:00Z",
+        "2026-10-08T10:43:00Z"
+      ],
+      "missing_minutes": {},
+      "coverage": {
+        "LG1": "44/45 minutes",
+        "LG2": "44/45 minutes"
+      }
+    },
+    {
+      "file": "vusers.csv",
+      "present": true,
+      "timestamps": "UTC",
+      "limitations": "",
+      "rows": 90,
+      "range_utc": [
+        "2026-10-08T10:00:00Z",
+        "2026-10-08T10:44:00Z"
+      ],
+      "missing_minutes": {},
+      "coverage": {
+        "LG1": "45/45 minutes",
+        "LG2": "45/45 minutes"
+      }
+    },
+    {
+      "file": "load_generators.csv",
+      "present": true,
+      "timestamps": "UTC",
+      "limitations": "",
+      "rows": 90,
+      "range_utc": [
+        "2026-10-08T10:00:00Z",
+        "2026-10-08T10:44:00Z"
+      ],
+      "missing_minutes": {},
+      "coverage": {
+        "LG1": "45/45 minutes",
+        "LG2": "45/45 minutes"
+      }
+    },
+    {
+      "file": "app_servers.csv",
+      "present": true,
+      "timestamps": "UTC",
+      "limitations": "",
+      "rows": 90,
+      "range_utc": [
+        "2026-10-08T10:00:00Z",
+        "2026-10-08T10:44:00Z"
+      ],
+      "missing_minutes": {},
+      "coverage": {
+        "app1": "45/45 minutes",
+        "app2": "45/45 minutes"
+      }
+    },
+    {
+      "file": "database.csv",
+      "present": true,
+      "timestamps": "Server local time with UTC offset in each timestamp",
+      "limitations": "Exported from the database host, not the APM tool.",
+      "rows": 45,
+      "range_utc": [
+        "2026-10-08T10:00:00Z",
+        "2026-10-08T10:44:00Z"
+      ],
+      "normalisation": "converted to UTC using the offset in each timestamp",
+      "missing_minutes": {},
+      "coverage": {
+        "all": "45/45 minutes"
+      }
+    },
+    {
+      "file": "network.csv",
+      "present": true,
+      "timestamps": "UTC",
+      "limitations": "",
+      "rows": 45,
+      "range_utc": [
+        "2026-10-08T10:00:00Z",
+        "2026-10-08T10:44:00Z"
+      ],
+      "missing_minutes": {},
+      "coverage": {
+        "lb1": "45/45 minutes"
+      }
+    },
+    {
+      "file": "external_calls.csv",
+      "present": true,
+      "timestamps": "UTC",
+      "limitations": "",
+      "rows": 45,
+      "range_utc": [
+        "2026-10-08T10:00:00Z",
+        "2026-10-08T10:44:00Z"
+      ],
+      "missing_minutes": {},
+      "coverage": {
+        "payment-sandbox": "45/45 minutes"
+      }
+    },
+    {
+      "file": "checkout_traces.csv",
+      "present": true,
+      "timestamps": "UTC",
+      "limitations": "Sample, not every request.",
+      "rows": 132,
+      "range_utc": [
+        "2026-10-08T10:00:10Z",
+        "2026-10-08T10:43:44Z"
+      ]
+    }
+  ],
+  "workload": {
+    "pacing_s": 20.0,
+    "minutes": [
+      {
+        "elapsed_min": 0,
+        "scheduled_vusers": 50,
+        "running_vusers": 50,
+        "exited_with_error": 0,
+        "tps": 9.9,
+        "error_rate_pct": 0.0,
+        "iterations_per_s": 2.47,
+        "implied_cycle_s": 20.3
+      },
+      {
+        "elapsed_min": 1,
+        "scheduled_vusers": 100,
+        "running_vusers": 100,
+        "exited_with_error": 0,
+        "tps": 20.1,
+        "error_rate_pct": 0.17,
+        "iterations_per_s": 5.05,
+        "implied_cycle_s": 19.8
+      },
+      {
+        "elapsed_min": 2,
+        "scheduled_vusers": 150,
+        "running_vusers": 150,
+        "exited_with_error": 0,
+        "tps": 30.4,
+        "error_rate_pct": 0.22,
+        "iterations_per_s": 7.63,
+        "implied_cycle_s": 19.7
+      },
+      {
+        "elapsed_min": 3,
+        "scheduled_vusers": 200,
+        "running_vusers": 200,
+        "exited_with_error": 0,
+        "tps": 39.5,
+        "error_rate_pct": 0.21,
+        "iterations_per_s": 9.93,
+        "implied_cycle_s": 20.1
+      },
+      {
+        "elapsed_min": 4,
+        "scheduled_vusers": 250,
+        "running_vusers": 250,
+        "exited_with_error": 0,
+        "tps": 50.5,
+        "error_rate_pct": 0.26,
+        "iterations_per_s": 12.42,
+        "implied_cycle_s": 20.1
+      },
+      {
+        "elapsed_min": 5,
+        "scheduled_vusers": 300,
+        "running_vusers": 300,
+        "exited_with_error": 0,
+        "tps": 60.1,
+        "error_rate_pct": 0.22,
+        "iterations_per_s": 15.3,
+        "implied_cycle_s": 19.6
+      },
+      {
+        "elapsed_min": 6,
+        "scheduled_vusers": 350,
+        "running_vusers": 350,
+        "exited_with_error": 0,
+        "tps": 70.6,
+        "error_rate_pct": 0.19,
+        "iterations_per_s": 17.77,
+        "implied_cycle_s": 19.7
+      },
+      {
+        "elapsed_min": 7,
+        "scheduled_vusers": 400,
+        "running_vusers": 400,
+        "exited_with_error": 0,
+        "tps": 79.9,
+        "error_rate_pct": 0.17,
+        "iterations_per_s": 20.0,
+        "implied_cycle_s": 20.0
+      },
+      {
+        "elapsed_min": 8,
+        "scheduled_vusers": 450,
+        "running_vusers": 450,
+        "exited_with_error": 0,
+        "tps": 90.0,
+        "error_rate_pct": 0.2,
+        "iterations_per_s": 22.53,
+        "implied_cycle_s": 20.0
+      },
+      {
+        "elapsed_min": 9,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 99.3,
+        "error_rate_pct": 0.18,
+        "iterations_per_s": 24.58,
+        "implied_cycle_s": 20.3
+      },
+      {
+        "elapsed_min": 10,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 100.2,
+        "error_rate_pct": 0.18,
+        "iterations_per_s": 24.95,
+        "implied_cycle_s": 20.0
+      },
+      {
+        "elapsed_min": 11,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 99.0,
+        "error_rate_pct": 0.2,
+        "iterations_per_s": 25.0,
+        "implied_cycle_s": 20.0
+      },
+      {
+        "elapsed_min": 12,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 100.0,
+        "error_rate_pct": 0.22,
+        "iterations_per_s": 24.95,
+        "implied_cycle_s": 20.0
+      },
+      {
+        "elapsed_min": 13,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 99.4,
+        "error_rate_pct": 0.18,
+        "iterations_per_s": 24.68,
+        "implied_cycle_s": 20.3
+      },
+      {
+        "elapsed_min": 14,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 99.0,
+        "error_rate_pct": 0.17,
+        "iterations_per_s": 25.07,
+        "implied_cycle_s": 19.9
+      },
+      {
+        "elapsed_min": 15,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 100.5,
+        "error_rate_pct": 0.22,
+        "iterations_per_s": 25.42,
+        "implied_cycle_s": 19.7
+      },
+      {
+        "elapsed_min": 16,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 99.9,
+        "error_rate_pct": 0.22,
+        "iterations_per_s": 24.95,
+        "implied_cycle_s": 20.0
+      },
+      {
+        "elapsed_min": 17,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 98.7,
+        "error_rate_pct": 0.19,
+        "iterations_per_s": 24.55,
+        "implied_cycle_s": 20.4
+      },
+      {
+        "elapsed_min": 18,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 100.0,
+        "error_rate_pct": 0.18,
+        "iterations_per_s": 25.28,
+        "implied_cycle_s": 19.8
+      },
+      {
+        "elapsed_min": 19,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 98.9,
+        "error_rate_pct": 0.59,
+        "iterations_per_s": 25.0,
+        "implied_cycle_s": 20.0
+      },
+      {
+        "elapsed_min": 20,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 101.1,
+        "error_rate_pct": 0.54,
+        "iterations_per_s": 25.07,
+        "implied_cycle_s": 19.9
+      },
+      {
+        "elapsed_min": 21,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 99.7,
+        "error_rate_pct": 0.62,
+        "iterations_per_s": 25.18,
+        "implied_cycle_s": 19.9
+      },
+      {
+        "elapsed_min": 22,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 99.5,
+        "error_rate_pct": 0.57,
+        "iterations_per_s": 24.83,
+        "implied_cycle_s": 20.1
+      },
+      {
+        "elapsed_min": 23,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 100.8,
+        "error_rate_pct": 0.6,
+        "iterations_per_s": 24.98,
+        "implied_cycle_s": 20.0
+      },
+      {
+        "elapsed_min": 24,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 97.7,
+        "error_rate_pct": 0.6,
+        "iterations_per_s": 24.27,
+        "implied_cycle_s": 20.6
+      },
+      {
+        "elapsed_min": 25,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 92.2,
+        "error_rate_pct": 0.58,
+        "iterations_per_s": 22.9,
+        "implied_cycle_s": 21.8
+      },
+      {
+        "elapsed_min": 26,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 88.8,
+        "error_rate_pct": 0.62,
+        "iterations_per_s": 22.25,
+        "implied_cycle_s": 22.5
+      },
+      {
+        "elapsed_min": 27,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 87.2,
+        "error_rate_pct": 0.67,
+        "iterations_per_s": 22.0,
+        "implied_cycle_s": 22.7
+      },
+      {
+        "elapsed_min": 28,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 85.1,
+        "error_rate_pct": 0.59,
+        "iterations_per_s": 21.55,
+        "implied_cycle_s": 23.2
+      },
+      {
+        "elapsed_min": 29,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 87.0,
+        "error_rate_pct": 0.57,
+        "iterations_per_s": 21.7,
+        "implied_cycle_s": 23.0
+      },
+      {
+        "elapsed_min": 30,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 84.2,
+        "error_rate_pct": 0.61,
+        "iterations_per_s": 20.95,
+        "implied_cycle_s": 23.9
+      },
+      {
+        "elapsed_min": 31,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 86.4,
+        "error_rate_pct": 0.6,
+        "iterations_per_s": 21.55,
+        "implied_cycle_s": 23.2
+      },
+      {
+        "elapsed_min": 32,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 86.9,
+        "error_rate_pct": 0.58,
+        "iterations_per_s": 21.72,
+        "implied_cycle_s": 23.0
+      },
+      {
+        "elapsed_min": 33,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 85.1,
+        "error_rate_pct": 0.63,
+        "iterations_per_s": 21.38,
+        "implied_cycle_s": 23.4
+      },
+      {
+        "elapsed_min": 34,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 85.8,
+        "error_rate_pct": 0.56,
+        "iterations_per_s": 21.73,
+        "implied_cycle_s": 23.0
+      },
+      {
+        "elapsed_min": 35,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 85.4,
+        "error_rate_pct": 0.59,
+        "iterations_per_s": 21.53,
+        "implied_cycle_s": 23.2
+      },
+      {
+        "elapsed_min": 36,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 85.8,
+        "error_rate_pct": 0.6,
+        "iterations_per_s": 21.67,
+        "implied_cycle_s": 23.1
+      },
+      {
+        "elapsed_min": 37,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 85.2,
+        "error_rate_pct": 0.57,
+        "iterations_per_s": 21.32,
+        "implied_cycle_s": 23.5
+      },
+      {
+        "elapsed_min": 38,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 85.8,
+        "error_rate_pct": 0.6,
+        "iterations_per_s": 21.28,
+        "implied_cycle_s": 23.5
+      },
+      {
+        "elapsed_min": 39,
+        "scheduled_vusers": 500,
+        "running_vusers": 500,
+        "exited_with_error": 0,
+        "tps": 85.4,
+        "error_rate_pct": 0.64,
+        "iterations_per_s": 21.15,
+        "implied_cycle_s": 23.6
+      },
+      {
+        "elapsed_min": 40,
+        "scheduled_vusers": 400,
+        "running_vusers": 400,
+        "exited_with_error": 0,
+        "tps": 80.9,
+        "error_rate_pct": 0.19,
+        "iterations_per_s": 19.92,
+        "implied_cycle_s": 20.1
+      },
+      {
+        "elapsed_min": 41,
+        "scheduled_vusers": 300,
+        "running_vusers": 300,
+        "exited_with_error": 0,
+        "tps": 59.4,
+        "error_rate_pct": 0.2,
+        "iterations_per_s": 14.68,
+        "implied_cycle_s": 20.4
+      },
+      {
+        "elapsed_min": 42,
+        "scheduled_vusers": 200,
+        "running_vusers": 200,
+        "exited_with_error": 0,
+        "tps": 40.4,
+        "error_rate_pct": 0.25,
+        "iterations_per_s": 10.2,
+        "implied_cycle_s": 19.6
+      },
+      {
+        "elapsed_min": 43,
+        "scheduled_vusers": 100,
+        "running_vusers": 100,
+        "exited_with_error": 0,
+        "tps": 19.8,
+        "error_rate_pct": 0.17,
+        "iterations_per_s": 4.93,
+        "implied_cycle_s": 20.3
+      },
+      {
+        "elapsed_min": 44,
+        "scheduled_vusers": 0,
+        "running_vusers": 0,
+        "exited_with_error": 0,
+        "tps": 0.0,
+        "error_rate_pct": null,
+        "iterations_per_s": 0.0,
+        "implied_cycle_s": null
+      }
+    ],
+    "per_generator_tps": {
+      "LG1": {
+        "0": 5.0,
+        "1": 10.1,
+        "2": 15.3,
+        "3": 19.8,
+        "4": 25.3,
+        "5": 30.0,
+        "6": 35.7,
+        "7": 39.9,
+        "8": 45.5,
+        "9": 49.5,
+        "10": 49.5,
+        "11": 49.8,
+        "12": 49.0,
+        "13": 49.2,
+        "14": 49.1,
+        "15": 50.4,
+        "16": 49.9,
+        "17": 49.0,
+        "18": 49.3,
+        "19": 49.0,
+        "20": 50.3,
+        "21": 50.2,
+        "22": 49.5,
+        "23": 51.0,
+        "24": 48.9,
+        "25": 46.5,
+        "26": 44.5,
+        "27": 43.5,
+        "28": 42.8,
+        "29": 43.7,
+        "30": 41.9,
+        "31": 43.4,
+        "32": 44.1,
+        "33": 42.4,
+        "34": 42.4,
+        "35": 42.7,
+        "36": 42.5,
+        "37": 42.2,
+        "38": 42.7,
+        "39": 42.5,
+        "40": 40.5,
+        "41": 29.6,
+        "42": 20.1,
+        "43": 9.8
+      },
+      "LG2": {
+        "0": 4.9,
+        "1": 10.0,
+        "2": 15.1,
+        "3": 19.7,
+        "4": 25.2,
+        "5": 30.1,
+        "6": 35.0,
+        "7": 40.0,
+        "8": 44.5,
+        "9": 49.8,
+        "10": 50.6,
+        "11": 49.2,
+        "12": 51.0,
+        "13": 50.2,
+        "14": 49.9,
+        "15": 50.2,
+        "16": 50.0,
+        "17": 49.7,
+        "18": 50.6,
+        "19": 50.0,
+        "20": 50.8,
+        "21": 49.5,
+        "22": 50.0,
+        "23": 49.8,
+        "24": 48.8,
+        "25": 45.7,
+        "26": 44.3,
+        "27": 43.6,
+        "28": 42.4,
+        "29": 43.3,
+        "30": 42.3,
+        "31": 43.0,
+        "32": 42.9,
+        "33": 42.7,
+        "34": 43.4,
+        "35": 42.8,
+        "36": 43.2,
+        "37": 43.0,
+        "38": 43.1,
+        "39": 42.9,
+        "40": 40.4,
+        "41": 29.8,
+        "42": 20.3,
+        "43": 10.0
+      }
+    },
+    "per_generator_running": {
+      "LG1": {
+        "0": 25,
+        "1": 50,
+        "2": 75,
+        "3": 100,
+        "4": 125,
+        "5": 150,
+        "6": 175,
+        "7": 200,
+        "8": 225,
+        "9": 250,
+        "10": 250,
+        "11": 250,
+        "12": 250,
+        "13": 250,
+        "14": 250,
+        "15": 250,
+        "16": 250,
+        "17": 250,
+        "18": 250,
+        "19": 250,
+        "20": 250,
+        "21": 250,
+        "22": 250,
+        "23": 250,
+        "24": 250,
+        "25": 250,
+        "26": 250,
+        "27": 250,
+        "28": 250,
+        "29": 250,
+        "30": 250,
+        "31": 250,
+        "32": 250,
+        "33": 250,
+        "34": 250,
+        "35": 250,
+        "36": 250,
+        "37": 250,
+        "38": 250,
+        "39": 250,
+        "40": 200,
+        "41": 150,
+        "42": 100,
+        "43": 50,
+        "44": 0
+      },
+      "LG2": {
+        "0": 25,
+        "1": 50,
+        "2": 75,
+        "3": 100,
+        "4": 125,
+        "5": 150,
+        "6": 175,
+        "7": 200,
+        "8": 225,
+        "9": 250,
+        "10": 250,
+        "11": 250,
+        "12": 250,
+        "13": 250,
+        "14": 250,
+        "15": 250,
+        "16": 250,
+        "17": 250,
+        "18": 250,
+        "19": 250,
+        "20": 250,
+        "21": 250,
+        "22": 250,
+        "23": 250,
+        "24": 250,
+        "25": 250,
+        "26": 250,
+        "27": 250,
+        "28": 250,
+        "29": 250,
+        "30": 250,
+        "31": 250,
+        "32": 250,
+        "33": 250,
+        "34": 250,
+        "35": 250,
+        "36": 250,
+        "37": 250,
+        "38": 250,
+        "39": 250,
+        "40": 200,
+        "41": 150,
+        "42": 100,
+        "43": 50,
+        "44": 0
+      }
+    },
+    "littles_law_note": "implied_cycle_s = running users / iterations per second (one checkout per iteration). With fixed pacing it should equal the pacing interval; a larger value means iterations are running late (responses + think time exceed pacing)."
+  },
+  "acceptance": {
+    "steady_state_min": [
+      10,
+      39
+    ],
+    "per_minute": {
+      "10": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 1.42,
+          "LG2": 1.37
+        },
+        "SLA-1": "PASS",
+        "SLA-2 tps": 100.2,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.18,
+        "SLA-3": "PASS"
+      },
+      "11": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 1.39,
+          "LG2": 1.4
+        },
+        "SLA-1": "PASS",
+        "SLA-2 tps": 99.0,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.2,
+        "SLA-3": "PASS"
+      },
+      "12": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 1.42,
+          "LG2": 1.38
+        },
+        "SLA-1": "PASS",
+        "SLA-2 tps": 100.0,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.22,
+        "SLA-3": "PASS"
+      },
+      "13": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 1.51,
+          "LG2": 1.54
+        },
+        "SLA-1": "PASS",
+        "SLA-2 tps": 99.4,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.18,
+        "SLA-3": "PASS"
+      },
+      "14": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 1.49,
+          "LG2": 1.34
+        },
+        "SLA-1": "PASS",
+        "SLA-2 tps": 99.0,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.17,
+        "SLA-3": "PASS"
+      },
+      "15": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 1.35,
+          "LG2": 1.45
+        },
+        "SLA-1": "PASS",
+        "SLA-2 tps": 100.5,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.22,
+        "SLA-3": "PASS"
+      },
+      "16": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 1.38,
+          "LG2": 1.42
+        },
+        "SLA-1": "PASS",
+        "SLA-2 tps": 99.9,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.22,
+        "SLA-3": "PASS"
+      },
+      "17": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 1.49,
+          "LG2": 1.32
+        },
+        "SLA-1": "PASS",
+        "SLA-2 tps": 98.7,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.19,
+        "SLA-3": "PASS"
+      },
+      "18": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 1.46,
+          "LG2": 1.4
+        },
+        "SLA-1": "PASS",
+        "SLA-2 tps": 100.0,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.18,
+        "SLA-3": "PASS"
+      },
+      "19": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 4.96,
+          "LG2": 4.93
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 98.9,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.59,
+        "SLA-3": "PASS"
+      },
+      "20": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 5.07,
+          "LG2": 5.08
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 101.1,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.54,
+        "SLA-3": "PASS"
+      },
+      "21": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 4.98,
+          "LG2": 4.76
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 99.7,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.62,
+        "SLA-3": "PASS"
+      },
+      "22": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 5.37,
+          "LG2": 5.74
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 99.5,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.57,
+        "SLA-3": "PASS"
+      },
+      "23": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 5.8,
+          "LG2": 5.41
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 100.8,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.6,
+        "SLA-3": "PASS"
+      },
+      "24": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 6.35,
+          "LG2": 6.32
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 97.7,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.6,
+        "SLA-3": "PASS"
+      },
+      "25": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 6.2,
+          "LG2": 6.3
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 92.2,
+        "SLA-2": "PASS",
+        "SLA-3 error %": 0.58,
+        "SLA-3": "PASS"
+      },
+      "26": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 6.65,
+          "LG2": 6.73
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 88.8,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.62,
+        "SLA-3": "PASS"
+      },
+      "27": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 7.31,
+          "LG2": 7.32
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 87.2,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.67,
+        "SLA-3": "PASS"
+      },
+      "28": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 7.64,
+          "LG2": 7.18
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 85.1,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.59,
+        "SLA-3": "PASS"
+      },
+      "29": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 6.72,
+          "LG2": 7.42
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 87.0,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.57,
+        "SLA-3": "PASS"
+      },
+      "30": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 7.39,
+          "LG2": 7.1
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 84.2,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.61,
+        "SLA-3": "PASS"
+      },
+      "31": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 6.64,
+          "LG2": 7.33
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 86.4,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.6,
+        "SLA-3": "PASS"
+      },
+      "32": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 6.48,
+          "LG2": 6.98
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 86.9,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.58,
+        "SLA-3": "PASS"
+      },
+      "33": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 7.06,
+          "LG2": 6.69
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 85.1,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.63,
+        "SLA-3": "PASS"
+      },
+      "34": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 7.24,
+          "LG2": 7.19
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 85.8,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.56,
+        "SLA-3": "PASS"
+      },
+      "35": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 6.75,
+          "LG2": 6.55
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 85.4,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.59,
+        "SLA-3": "PASS"
+      },
+      "36": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 7.2,
+          "LG2": 7.05
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 85.8,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.6,
+        "SLA-3": "PASS"
+      },
+      "37": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 6.46,
+          "LG2": 7.31
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 85.2,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.57,
+        "SLA-3": "PASS"
+      },
+      "38": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 6.9,
+          "LG2": 7.64
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 85.8,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.6,
+        "SLA-3": "PASS"
+      },
+      "39": {
+        "SLA-1 checkout p95 by generator (s)": {
+          "LG1": 7.17,
+          "LG2": 6.85
+        },
+        "SLA-1": "FAIL",
+        "SLA-2 tps": 85.4,
+        "SLA-2": "FAIL",
+        "SLA-3 error %": 0.64,
+        "SLA-3": "PASS"
+      }
+    },
+    "failing_minutes": {
+      "SLA-1": [
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      "SLA-2": [
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      "SLA-3": []
+    },
+    "steady_error_rate_pct": 0.47,
+    "first_failing_minute": 19,
+    "note": "SLA-1 is judged per generator per minute because p95 values cannot be averaged."
+  },
+  "summaries": {
+    "transactions.csv": {
+      "min 0-9": {
+        "LG1 / add_to_cart": {
+          "minutes_present": 10,
+          "count": {
+            "min": 77.0,
+            "mean": 416.2,
+            "max": 749.0
+          },
+          "passed": {
+            "min": 77.0,
+            "mean": 415.5,
+            "max": 748.0
+          },
+          "failed": {
+            "min": 0.0,
+            "mean": 0.7,
+            "max": 1.0
+          },
+          "avg_s": {
+            "min": 0.38,
+            "mean": 0.4,
+            "max": 0.42
+          },
+          "p95_s": {
+            "median_of_minute_values": 0.66,
+            "max_minute_value": 0.71
+          }
+        },
+        "LG1 / checkout": {
+          "minutes_present": 10,
+          "count": {
+            "min": 75.0,
+            "mean": 409.6,
+            "max": 736.0
+          },
+          "passed": {
+            "min": 75.0,
+            "mean": 408.7,
+            "max": 734.0
+          },
+          "failed": {
+            "min": 0.0,
+            "mean": 0.9,
+            "max": 2.0
+          },
+          "avg_s": {
+            "min": 0.81,
+            "mean": 0.84,
+            "max": 0.89
+          },
+          "p95_s": {
+            "median_of_minute_values": 1.37,
+            "max_minute_value": 1.46
+          }
+        },
+        "LG1 / search": {
+          "minutes_present": 10,
+          "count": {
+            "min": 150.0,
+            "mean": 830.7,
+            "max": 1485.0
+          },
+          "passed": {
+            "min": 150.0,
+            "mean": 829.0,
+            "max": 1482.0
+          },
+          "failed": {
+            "min": 0.0,
+            "mean": 1.7,
+            "max": 3.0
+          },
+          "avg_s": {
+            "min": 0.58,
+            "mean": 0.6,
+            "max": 0.63
+          },
+          "p95_s": {
+            "median_of_minute_values": 0.99,
+            "max_minute_value": 1.05
+          }
+        },
+        "LG2 / add_to_cart": {
+          "minutes_present": 10,
+          "count": {
+            "min": 74.0,
+            "mean": 409.3,
+            "max": 748.0
+          },
+          "passed": {
+            "min": 74.0,
+            "mean": 408.6,
+            "max": 747.0
+          },
+          "failed": {
+            "min": 0.0,
+            "mean": 0.7,
+            "max": 1.0
+          },
+          "avg_s": {
+            "min": 0.38,
+            "mean": 0.4,
+            "max": 0.42
+          },
+          "p95_s": {
+            "median_of_minute_values": 0.67,
+            "max_minute_value": 0.69
+          }
+        },
+        "LG2 / checkout": {
+          "minutes_present": 10,
+          "count": {
+            "min": 73.0,
+            "mean": 416.5,
+            "max": 739.0
+          },
+          "passed": {
+            "min": 73.0,
+            "mean": 415.7,
+            "max": 738.0
+          },
+          "failed": {
+            "min": 0.0,
+            "mean": 0.8,
+            "max": 1.0
+          },
+          "avg_s": {
+            "min": 0.81,
+            "mean": 0.85,
+            "max": 0.88
+          },
+          "p95_s": {
+            "median_of_minute_values": 1.42,
+            "max_minute_value": 1.47
+          }
+        },
+        "LG2 / search": {
+          "minutes_present": 10,
+          "count": {
+            "min": 146.0,
+            "mean": 820.8,
+            "max": 1503.0
+          },
+          "passed": {
+            "min": 146.0,
+            "mean": 819.1,
+            "max": 1500.0
+          },
+          "failed": {
+            "min": 0.0,
+            "mean": 1.7,
+            "max": 3.0
+          },
+          "avg_s": {
+            "min": 0.58,
+            "mean": 0.61,
+            "max": 0.63
+          },
+          "p95_s": {
+            "median_of_minute_values": 1.02,
+            "max_minute_value": 1.07
+          }
+        }
+      },
+      "min 10-18": {
+        "LG1 / add_to_cart": {
+          "minutes_present": 9,
+          "count": {
+            "min": 730.0,
+            "mean": 742.67,
+            "max": 758.0
+          },
+          "passed": {
+            "min": 729.0,
+            "mean": 741.0,
+            "max": 756.0
+          },
+          "failed": {
+            "min": 1.0,
+            "mean": 1.67,
+            "max": 2.0
+          },
+          "avg_s": {
+            "min": 0.38,
+            "mean": 0.4,
+            "max": 0.41
+          },
+          "p95_s": {
+            "median_of_minute_values": 0.67,
+            "max_minute_value": 0.71
+          }
+        },
+        "LG1 / checkout": {
+          "minutes_present": 9,
+          "count": {
+            "min": 736.0,
+            "mean": 749.22,
+            "max": 771.0
+          },
+          "passed": {
+            "min": 734.0,
+            "mean": 748.0,
+            "max": 769.0
+          },
+          "failed": {
+            "min": 1.0,
+            "mean": 1.22,
+            "max": 2.0
+          },
+          "avg_s": {
+            "min": 0.82,
+            "mean": 0.85,
+            "max": 0.87
+          },
+          "p95_s": {
+            "median_of_minute_values": 1.42,
+            "max_minute_value": 1.51
+          }
+        },
+        "LG1 / search": {
+          "minutes_present": 9,
+          "count": {
+            "min": 1461.0,
+            "mean": 1476.67,
+            "max": 1505.0
+          },
+          "passed": {
+            "min": 1458.0,
+            "mean": 1473.78,
+            "max": 1502.0
+          },
+          "failed": {
+            "min": 2.0,
+            "mean": 2.89,
+            "max": 3.0
+          },
+          "avg_s": {
+            "min": 0.58,
+            "mean": 0.6,
+            "max": 0.62
+          },
+          "p95_s": {
+            "median_of_minute_values": 0.99,
+            "max_minute_value": 1.06
+          }
+        },
+        "LG2 / add_to_cart": {
+          "minutes_present": 9,
+          "count": {
+            "min": 728.0,
+            "mean": 756.0,
+            "max": 771.0
+          },
+          "passed": {
+            "min": 727.0,
+            "mean": 754.44,
+            "max": 770.0
+          },
+          "failed": {
+            "min": 1.0,
+            "mean": 1.56,
+            "max": 2.0
+          },
+          "avg_s": {
+            "min": 0.38,
+            "mean": 0.41,
+            "max": 0.42
+          },
+          "p95_s": {
+            "median_of_minute_values": 0.66,
+            "max_minute_value": 0.72
+          }
+        },
+        "LG2 / checkout": {
+          "minutes_present": 9,
+          "count": {
+            "min": 734.0,
+            "mean": 749.78,
+            "max": 764.0
+          },
+          "passed": {
+            "min": 733.0,
+            "mean": 748.33,
+            "max": 762.0
+          },
+          "failed": {
+            "min": 1.0,
+            "mean": 1.44,
+            "max": 2.0
+          },
+          "avg_s": {
+            "min": 0.82,
+            "mean": 0.86,
+            "max": 0.89
+          },
+          "p95_s": {
+            "median_of_minute_values": 1.4,
+            "max_minute_value": 1.54
+          }
+        },
+        "LG2 / search": {
+          "minutes_present": 9,
+          "count": {
+            "min": 1463.0,
+            "mean": 1502.89,
+            "max": 1545.0
+          },
+          "passed": {
+            "min": 1460.0,
+            "mean": 1500.0,
+            "max": 1542.0
+          },
+          "failed": {
+            "min": 2.0,
+            "mean": 2.89,
+            "max": 4.0
+          },
+          "avg_s": {
+            "min": 0.57,
+            "mean": 0.6,
+            "max": 0.63
+          },
+          "p95_s": {
+            "median_of_minute_values": 0.97,
+            "max_minute_value": 1.08
+          }
+        }
+      },
+      "min 19-39": {
+        "LG1 / add_to_cart": {
+          "minutes_present": 21,
+          "count": {
+            "min": 618.0,
+            "mean": 673.95,
+            "max": 761.0
+          },
+          "passed": {
+            "min": 615.0,
+            "mean": 670.0,
+            "max": 756.0
+          },
+          "failed": {
+            "min": 3.0,
+            "mean": 3.95,
+            "max": 5.0
+          },
+          "avg_s": {
+            "min": 0.73,
+            "mean": 1.8,
+            "max": 2.22
+          },
+          "p95_s": {
+            "median_of_minute_values": 3.35,
+            "max_minute_value": 3.79
+          }
+        },
+        "LG1 / checkout": {
+          "minutes_present": 21,
+          "count": {
+            "min": 631.0,
+            "mean": 678.1,
+            "max": 766.0
+          },
+          "passed": {
+            "min": 628.0,
+            "mean": 674.19,
+            "max": 761.0
+          },
+          "failed": {
+            "min": 3.0,
+            "mean": 3.9,
+            "max": 5.0
+          },
+          "avg_s": {
+            "min": 2.98,
+            "mean": 3.94,
+            "max": 4.39
+          },
+          "p95_s": {
+            "median_of_minute_values": 6.65,
+            "max_minute_value": 7.64
+          }
+        },
+        "LG1 / search": {
+          "minutes_present": 21,
+          "count": {
+            "min": 1251.0,
+            "mean": 1352.1,
+            "max": 1534.0
+          },
+          "passed": {
+            "min": 1244.0,
+            "mean": 1343.95,
+            "max": 1526.0
+          },
+          "failed": {
+            "min": 7.0,
+            "mean": 8.14,
+            "max": 10.0
+          },
+          "avg_s": {
+            "min": 1.0,
+            "mean": 2.15,
+            "max": 2.64
+          },
+          "p95_s": {
+            "median_of_minute_values": 3.97,
+            "max_minute_value": 4.5
+          }
+        },
+        "LG2 / add_to_cart": {
+          "minutes_present": 21,
+          "count": {
+            "min": 629.0,
+            "mean": 674.05,
+            "max": 765.0
+          },
+          "passed": {
+            "min": 626.0,
+            "mean": 670.19,
+            "max": 761.0
+          },
+          "failed": {
+            "min": 3.0,
+            "mean": 3.86,
+            "max": 5.0
+          },
+          "avg_s": {
+            "min": 0.79,
+            "mean": 1.8,
+            "max": 2.24
+          },
+          "p95_s": {
+            "median_of_minute_values": 3.41,
+            "max_minute_value": 3.82
+          }
+        },
+        "LG2 / checkout": {
+          "minutes_present": 21,
+          "count": {
+            "min": 626.0,
+            "mean": 676.24,
+            "max": 769.0
+          },
+          "passed": {
+            "min": 622.0,
+            "mean": 672.0,
+            "max": 764.0
+          },
+          "failed": {
+            "min": 3.0,
+            "mean": 4.24,
+            "max": 5.0
+          },
+          "avg_s": {
+            "min": 2.91,
+            "mean": 3.98,
+            "max": 4.55
+          },
+          "p95_s": {
+            "median_of_minute_values": 6.85,
+            "max_minute_value": 7.64
+          }
+        },
+        "LG2 / search": {
+          "minutes_present": 21,
+          "count": {
+            "min": 1244.0,
+            "mean": 1356.57,
+            "max": 1517.0
+          },
+          "passed": {
+            "min": 1235.0,
+            "mean": 1348.43,
+            "max": 1509.0
+          },
+          "failed": {
+            "min": 7.0,
+            "mean": 8.14,
+            "max": 10.0
+          },
+          "avg_s": {
+            "min": 0.98,
+            "mean": 2.13,
+            "max": 2.59
+          },
+          "p95_s": {
+            "median_of_minute_values": 3.93,
+            "max_minute_value": 4.47
+          }
+        }
+      },
+      "min 40-44": {
+        "LG1 / add_to_cart": {
+          "minutes_present": 4,
+          "count": {
+            "min": 147.0,
+            "mean": 374.25,
+            "max": 604.0
+          },
+          "passed": {
+            "min": 147.0,
+            "mean": 373.5,
+            "max": 603.0
+          },
+          "failed": {
+            "min": 0.0,
+            "mean": 0.75,
+            "max": 1.0
+          },
+          "avg_s": {
+            "min": 0.39,
+            "mean": 0.4,
+            "max": 0.41
+          },
+          "p95_s": {
+            "median_of_minute_values": 0.67,
+            "max_minute_value": 0.71
+          }
+        },
+        "LG1 / checkout": {
+          "minutes_present": 4,
+          "count": {
+            "min": 148.0,
+            "mean": 371.25,
+            "max": 596.0
+          },
+          "passed": {
+            "min": 148.0,
+            "mean": 370.5,
+            "max": 595.0
+          },
+          "failed": {
+            "min": 0.0,
+            "mean": 0.75,
+            "max": 1.0
+          },
+          "avg_s": {
+            "min": 0.82,
+            "mean": 0.84,
+            "max": 0.87
+          },
+          "p95_s": {
+            "median_of_minute_values": 1.35,
+            "max_minute_value": 1.44
+          }
+        },
+        "LG1 / search": {
+          "minutes_present": 4,
+          "count": {
+            "min": 295.0,
+            "mean": 755.75,
+            "max": 1233.0
+          },
+          "passed": {
+            "min": 294.0,
+            "mean": 754.0,
+            "max": 1230.0
+          },
+          "failed": {
+            "min": 1.0,
+            "mean": 1.75,
+            "max": 3.0
+          },
+          "avg_s": {
+            "min": 0.58,
+            "mean": 0.6,
+            "max": 0.62
+          },
+          "p95_s": {
+            "median_of_minute_values": 0.99,
+            "max_minute_value": 1.03
+          }
+        },
+        "LG2 / add_to_cart": {
+          "minutes_present": 4,
+          "count": {
+            "min": 146.0,
+            "mean": 371.25,
+            "max": 592.0
+          },
+          "passed": {
+            "min": 146.0,
+            "mean": 370.5,
+            "max": 591.0
+          },
+          "failed": {
+            "min": 0.0,
+            "mean": 0.75,
+            "max": 1.0
+          },
+          "avg_s": {
+            "min": 0.39,
+            "mean": 0.4,
+            "max": 0.42
+          },
+          "p95_s": {
+            "median_of_minute_values": 0.67,
+            "max_minute_value": 0.72
+          }
+        },
+        "LG2 / checkout": {
+          "minutes_present": 4,
+          "count": {
+            "min": 148.0,
+            "mean": 374.75,
+            "max": 599.0
+          },
+          "passed": {
+            "min": 148.0,
+            "mean": 374.0,
+            "max": 598.0
+          },
+          "failed": {
+            "min": 0.0,
+            "mean": 0.75,
+            "max": 1.0
+          },
+          "avg_s": {
+            "min": 0.82,
+            "mean": 0.87,
+            "max": 0.89
+          },
+          "p95_s": {
+            "median_of_minute_values": 1.43,
+            "max_minute_value": 1.54
+          }
+        },
+        "LG2 / search": {
+          "minutes_present": 4,
+          "count": {
+            "min": 305.0,
+            "mean": 760.5,
+            "max": 1231.0
+          },
+          "passed": {
+            "min": 304.0,
+            "mean": 759.25,
+            "max": 1229.0
+          },
+          "failed": {
+            "min": 1.0,
+            "mean": 1.25,
+            "max": 2.0
+          },
+          "avg_s": {
+            "min": 0.58,
+            "mean": 0.6,
+            "max": 0.62
+          },
+          "p95_s": {
+            "median_of_minute_values": 0.99,
+            "max_minute_value": 1.04
+          }
+        }
+      }
+    },
+    "vusers.csv": {
+      "min 0-9": {
+        "LG1": {
+          "minutes_present": 10,
+          "scheduled_vusers": {
+            "min": 25.0,
+            "mean": 137.5,
+            "max": 250.0
+          },
+          "running_vusers": {
+            "min": 25.0,
+            "mean": 137.5,
+            "max": 250.0
+          },
+          "exited_with_error": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        },
+        "LG2": {
+          "minutes_present": 10,
+          "scheduled_vusers": {
+            "min": 25.0,
+            "mean": 137.5,
+            "max": 250.0
+          },
+          "running_vusers": {
+            "min": 25.0,
+            "mean": 137.5,
+            "max": 250.0
+          },
+          "exited_with_error": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      },
+      "min 10-18": {
+        "LG1": {
+          "minutes_present": 9,
+          "scheduled_vusers": {
+            "min": 250.0,
+            "mean": 250.0,
+            "max": 250.0
+          },
+          "running_vusers": {
+            "min": 250.0,
+            "mean": 250.0,
+            "max": 250.0
+          },
+          "exited_with_error": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        },
+        "LG2": {
+          "minutes_present": 9,
+          "scheduled_vusers": {
+            "min": 250.0,
+            "mean": 250.0,
+            "max": 250.0
+          },
+          "running_vusers": {
+            "min": 250.0,
+            "mean": 250.0,
+            "max": 250.0
+          },
+          "exited_with_error": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      },
+      "min 19-39": {
+        "LG1": {
+          "minutes_present": 21,
+          "scheduled_vusers": {
+            "min": 250.0,
+            "mean": 250.0,
+            "max": 250.0
+          },
+          "running_vusers": {
+            "min": 250.0,
+            "mean": 250.0,
+            "max": 250.0
+          },
+          "exited_with_error": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        },
+        "LG2": {
+          "minutes_present": 21,
+          "scheduled_vusers": {
+            "min": 250.0,
+            "mean": 250.0,
+            "max": 250.0
+          },
+          "running_vusers": {
+            "min": 250.0,
+            "mean": 250.0,
+            "max": 250.0
+          },
+          "exited_with_error": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      },
+      "min 40-44": {
+        "LG1": {
+          "minutes_present": 5,
+          "scheduled_vusers": {
+            "min": 0.0,
+            "mean": 100.0,
+            "max": 200.0
+          },
+          "running_vusers": {
+            "min": 0.0,
+            "mean": 100.0,
+            "max": 200.0
+          },
+          "exited_with_error": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        },
+        "LG2": {
+          "minutes_present": 5,
+          "scheduled_vusers": {
+            "min": 0.0,
+            "mean": 100.0,
+            "max": 200.0
+          },
+          "running_vusers": {
+            "min": 0.0,
+            "mean": 100.0,
+            "max": 200.0
+          },
+          "exited_with_error": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      }
+    },
+    "load_generators.csv": {
+      "min 0-9": {
+        "LG1": {
+          "minutes_present": 10,
+          "cpu_pct": {
+            "min": 18.5,
+            "mean": 30.82,
+            "max": 42.9
+          },
+          "memory_pct": {
+            "min": 39.6,
+            "mean": 46.8,
+            "max": 54.0
+          },
+          "script_errors": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        },
+        "LG2": {
+          "minutes_present": 10,
+          "cpu_pct": {
+            "min": 18.9,
+            "mean": 29.94,
+            "max": 43.2
+          },
+          "memory_pct": {
+            "min": 39.6,
+            "mean": 46.8,
+            "max": 54.0
+          },
+          "script_errors": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      },
+      "min 10-18": {
+        "LG1": {
+          "minutes_present": 9,
+          "cpu_pct": {
+            "min": 43.0,
+            "mean": 44.21,
+            "max": 45.9
+          },
+          "memory_pct": {
+            "min": 54.0,
+            "mean": 54.0,
+            "max": 54.0
+          },
+          "script_errors": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        },
+        "LG2": {
+          "minutes_present": 9,
+          "cpu_pct": {
+            "min": 42.5,
+            "mean": 44.48,
+            "max": 45.9
+          },
+          "memory_pct": {
+            "min": 54.0,
+            "mean": 54.0,
+            "max": 54.0
+          },
+          "script_errors": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      },
+      "min 19-39": {
+        "LG1": {
+          "minutes_present": 21,
+          "cpu_pct": {
+            "min": 42.1,
+            "mean": 44.35,
+            "max": 45.9
+          },
+          "memory_pct": {
+            "min": 54.0,
+            "mean": 54.0,
+            "max": 54.0
+          },
+          "script_errors": {
+            "min": 0.0,
+            "mean": 1.14,
+            "max": 2.0
+          }
+        },
+        "LG2": {
+          "minutes_present": 21,
+          "cpu_pct": {
+            "min": 42.2,
+            "mean": 44.41,
+            "max": 45.9
+          },
+          "memory_pct": {
+            "min": 54.0,
+            "mean": 54.0,
+            "max": 54.0
+          },
+          "script_errors": {
+            "min": 0.0,
+            "mean": 1.05,
+            "max": 2.0
+          }
+        }
+      },
+      "min 40-44": {
+        "LG1": {
+          "minutes_present": 5,
+          "cpu_pct": {
+            "min": 14.8,
+            "mean": 26.2,
+            "max": 39.3
+          },
+          "memory_pct": {
+            "min": 38.0,
+            "mean": 44.4,
+            "max": 50.8
+          },
+          "script_errors": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        },
+        "LG2": {
+          "minutes_present": 5,
+          "cpu_pct": {
+            "min": 15.0,
+            "mean": 26.36,
+            "max": 37.3
+          },
+          "memory_pct": {
+            "min": 38.0,
+            "mean": 44.4,
+            "max": 50.8
+          },
+          "script_errors": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      }
+    },
+    "app_servers.csv": {
+      "min 0-9": {
+        "app1": {
+          "minutes_present": 10,
+          "cpu_pct": {
+            "min": 12.8,
+            "mean": 33.06,
+            "max": 53.4
+          },
+          "heap_used_pct": {
+            "min": 54.7,
+            "mean": 58.79,
+            "max": 62.0
+          },
+          "gc_pause_ms": {
+            "min": 66.0,
+            "mean": 93.0,
+            "max": 134.0
+          },
+          "active_threads": {
+            "min": 8.0,
+            "mean": 15.8,
+            "max": 24.0
+          },
+          "max_threads": {
+            "min": 200.0,
+            "mean": 200.0,
+            "max": 200.0
+          },
+          "db_pool_active": {
+            "min": 3.0,
+            "mean": 5.3,
+            "max": 7.0
+          },
+          "db_pool_max": {
+            "min": 20.0,
+            "mean": 20.0,
+            "max": 20.0
+          },
+          "db_pool_wait_ms": {
+            "min": 0.0,
+            "mean": 1.3,
+            "max": 2.0
+          }
+        },
+        "app2": {
+          "minutes_present": 10,
+          "cpu_pct": {
+            "min": 12.2,
+            "mean": 33.07,
+            "max": 52.1
+          },
+          "heap_used_pct": {
+            "min": 54.3,
+            "mean": 57.28,
+            "max": 61.0
+          },
+          "gc_pause_ms": {
+            "min": 68.0,
+            "mean": 91.7,
+            "max": 121.0
+          },
+          "active_threads": {
+            "min": 7.0,
+            "mean": 15.5,
+            "max": 24.0
+          },
+          "max_threads": {
+            "min": 200.0,
+            "mean": 200.0,
+            "max": 200.0
+          },
+          "db_pool_active": {
+            "min": 2.0,
+            "mean": 4.8,
+            "max": 7.0
+          },
+          "db_pool_max": {
+            "min": 20.0,
+            "mean": 20.0,
+            "max": 20.0
+          },
+          "db_pool_wait_ms": {
+            "min": 0.0,
+            "mean": 1.1,
+            "max": 2.0
+          }
+        }
+      },
+      "min 10-18": {
+        "app1": {
+          "minutes_present": 9,
+          "cpu_pct": {
+            "min": 51.4,
+            "mean": 53.06,
+            "max": 54.8
+          },
+          "heap_used_pct": {
+            "min": 54.0,
+            "mean": 58.43,
+            "max": 61.9
+          },
+          "gc_pause_ms": {
+            "min": 65.0,
+            "mean": 103.44,
+            "max": 134.0
+          },
+          "active_threads": {
+            "min": 22.0,
+            "mean": 23.56,
+            "max": 26.0
+          },
+          "max_threads": {
+            "min": 200.0,
+            "mean": 200.0,
+            "max": 200.0
+          },
+          "db_pool_active": {
+            "min": 6.0,
+            "mean": 7.0,
+            "max": 8.0
+          },
+          "db_pool_max": {
+            "min": 20.0,
+            "mean": 20.0,
+            "max": 20.0
+          },
+          "db_pool_wait_ms": {
+            "min": 0.0,
+            "mean": 1.0,
+            "max": 2.0
+          }
+        },
+        "app2": {
+          "minutes_present": 9,
+          "cpu_pct": {
+            "min": 50.7,
+            "mean": 52.69,
+            "max": 54.2
+          },
+          "heap_used_pct": {
+            "min": 54.2,
+            "mean": 58.06,
+            "max": 61.9
+          },
+          "gc_pause_ms": {
+            "min": 70.0,
+            "mean": 96.11,
+            "max": 121.0
+          },
+          "active_threads": {
+            "min": 22.0,
+            "mean": 23.33,
+            "max": 25.0
+          },
+          "max_threads": {
+            "min": 200.0,
+            "mean": 200.0,
+            "max": 200.0
+          },
+          "db_pool_active": {
+            "min": 7.0,
+            "mean": 7.0,
+            "max": 7.0
+          },
+          "db_pool_max": {
+            "min": 20.0,
+            "mean": 20.0,
+            "max": 20.0
+          },
+          "db_pool_wait_ms": {
+            "min": 0.0,
+            "mean": 1.11,
+            "max": 2.0
+          }
+        }
+      },
+      "min 19-39": {
+        "app1": {
+          "minutes_present": 21,
+          "cpu_pct": {
+            "min": 47.5,
+            "mean": 52.14,
+            "max": 54.7
+          },
+          "heap_used_pct": {
+            "min": 54.4,
+            "mean": 74.1,
+            "max": 86.3
+          },
+          "gc_pause_ms": {
+            "min": 71.0,
+            "mean": 490.57,
+            "max": 863.0
+          },
+          "active_threads": {
+            "min": 38.0,
+            "mean": 127.71,
+            "max": 200.0
+          },
+          "max_threads": {
+            "min": 200.0,
+            "mean": 200.0,
+            "max": 200.0
+          },
+          "db_pool_active": {
+            "min": 17.0,
+            "mean": 19.86,
+            "max": 20.0
+          },
+          "db_pool_max": {
+            "min": 20.0,
+            "mean": 20.0,
+            "max": 20.0
+          },
+          "db_pool_wait_ms": {
+            "min": 337.0,
+            "mean": 1379.38,
+            "max": 1806.0
+          }
+        },
+        "app2": {
+          "minutes_present": 21,
+          "cpu_pct": {
+            "min": 44.6,
+            "mean": 49.0,
+            "max": 54.6
+          },
+          "heap_used_pct": {
+            "min": 54.1,
+            "mean": 57.29,
+            "max": 61.6
+          },
+          "gc_pause_ms": {
+            "min": 73.0,
+            "mean": 101.0,
+            "max": 130.0
+          },
+          "active_threads": {
+            "min": 39.0,
+            "mean": 128.29,
+            "max": 200.0
+          },
+          "max_threads": {
+            "min": 200.0,
+            "mean": 200.0,
+            "max": 200.0
+          },
+          "db_pool_active": {
+            "min": 17.0,
+            "mean": 19.86,
+            "max": 20.0
+          },
+          "db_pool_max": {
+            "min": 20.0,
+            "mean": 20.0,
+            "max": 20.0
+          },
+          "db_pool_wait_ms": {
+            "min": 362.0,
+            "mean": 1389.81,
+            "max": 1820.0
+          }
+        }
+      },
+      "min 40-44": {
+        "app1": {
+          "minutes_present": 5,
+          "cpu_pct": {
+            "min": 9.8,
+            "mean": 26.18,
+            "max": 43.7
+          },
+          "heap_used_pct": {
+            "min": 54.7,
+            "mean": 56.6,
+            "max": 59.6
+          },
+          "gc_pause_ms": {
+            "min": 79.0,
+            "mean": 110.8,
+            "max": 122.0
+          },
+          "active_threads": {
+            "min": 7.0,
+            "mean": 13.4,
+            "max": 21.0
+          },
+          "max_threads": {
+            "min": 200.0,
+            "mean": 200.0,
+            "max": 200.0
+          },
+          "db_pool_active": {
+            "min": 3.0,
+            "mean": 4.8,
+            "max": 7.0
+          },
+          "db_pool_max": {
+            "min": 20.0,
+            "mean": 20.0,
+            "max": 20.0
+          },
+          "db_pool_wait_ms": {
+            "min": 0.0,
+            "mean": 0.8,
+            "max": 2.0
+          }
+        },
+        "app2": {
+          "minutes_present": 5,
+          "cpu_pct": {
+            "min": 7.1,
+            "mean": 25.86,
+            "max": 44.5
+          },
+          "heap_used_pct": {
+            "min": 54.8,
+            "mean": 58.3,
+            "max": 61.2
+          },
+          "gc_pause_ms": {
+            "min": 68.0,
+            "mean": 92.6,
+            "max": 132.0
+          },
+          "active_threads": {
+            "min": 8.0,
+            "mean": 13.2,
+            "max": 21.0
+          },
+          "max_threads": {
+            "min": 200.0,
+            "mean": 200.0,
+            "max": 200.0
+          },
+          "db_pool_active": {
+            "min": 2.0,
+            "mean": 4.0,
+            "max": 5.0
+          },
+          "db_pool_max": {
+            "min": 20.0,
+            "mean": 20.0,
+            "max": 20.0
+          },
+          "db_pool_wait_ms": {
+            "min": 0.0,
+            "mean": 0.4,
+            "max": 2.0
+          }
+        }
+      }
+    },
+    "database.csv": {
+      "min 0-9": {
+        "all": {
+          "minutes_present": 10,
+          "cpu_pct": {
+            "min": 8.1,
+            "mean": 18.63,
+            "max": 28.9
+          },
+          "active_sessions": {
+            "min": 4.0,
+            "mean": 6.8,
+            "max": 9.0
+          },
+          "avg_query_ms": {
+            "min": 10.0,
+            "mean": 11.34,
+            "max": 12.3
+          },
+          "lock_wait_ms": {
+            "min": 2.0,
+            "mean": 4.5,
+            "max": 8.0
+          }
+        }
+      },
+      "min 10-18": {
+        "all": {
+          "minutes_present": 9,
+          "cpu_pct": {
+            "min": 26.8,
+            "mean": 28.06,
+            "max": 29.3
+          },
+          "active_sessions": {
+            "min": 9.0,
+            "mean": 9.33,
+            "max": 10.0
+          },
+          "avg_query_ms": {
+            "min": 10.1,
+            "mean": 11.34,
+            "max": 12.0
+          },
+          "lock_wait_ms": {
+            "min": 2.0,
+            "mean": 4.33,
+            "max": 8.0
+          }
+        }
+      },
+      "min 19-39": {
+        "all": {
+          "minutes_present": 21,
+          "cpu_pct": {
+            "min": 23.5,
+            "mean": 29.37,
+            "max": 44.5
+          },
+          "active_sessions": {
+            "min": 9.0,
+            "mean": 39.67,
+            "max": 46.0
+          },
+          "avg_query_ms": {
+            "min": 10.1,
+            "mean": 12.8,
+            "max": 20.2
+          },
+          "lock_wait_ms": {
+            "min": 2.0,
+            "mean": 147.1,
+            "max": 800.0
+          }
+        }
+      },
+      "min 40-44": {
+        "all": {
+          "minutes_present": 5,
+          "cpu_pct": {
+            "min": 6.3,
+            "mean": 15.36,
+            "max": 24.1
+          },
+          "active_sessions": {
+            "min": 4.0,
+            "mean": 6.0,
+            "max": 8.0
+          },
+          "avg_query_ms": {
+            "min": 10.2,
+            "mean": 10.74,
+            "max": 11.3
+          },
+          "lock_wait_ms": {
+            "min": 3.0,
+            "mean": 5.8,
+            "max": 8.0
+          }
+        }
+      }
+    },
+    "network.csv": {
+      "min 0-9": {
+        "lb1": {
+          "minutes_present": 10,
+          "active_connections": {
+            "min": 27.0,
+            "mean": 169.8,
+            "max": 309.0
+          },
+          "throughput_mbps": {
+            "min": 3.5,
+            "mean": 23.11,
+            "max": 41.1
+          },
+          "retransmit_pct": {
+            "min": 0.01,
+            "mean": 0.02,
+            "max": 0.04
+          }
+        }
+      },
+      "min 10-18": {
+        "lb1": {
+          "minutes_present": 9,
+          "active_connections": {
+            "min": 307.0,
+            "mean": 309.56,
+            "max": 312.0
+          },
+          "throughput_mbps": {
+            "min": 41.3,
+            "mean": 41.91,
+            "max": 43.0
+          },
+          "retransmit_pct": {
+            "min": 0.02,
+            "mean": 0.03,
+            "max": 0.04
+          }
+        }
+      },
+      "min 19-39": {
+        "lb1": {
+          "minutes_present": 21,
+          "active_connections": {
+            "min": 305.0,
+            "mean": 309.24,
+            "max": 314.0
+          },
+          "throughput_mbps": {
+            "min": 35.2,
+            "mean": 38.05,
+            "max": 42.7
+          },
+          "retransmit_pct": {
+            "min": 0.01,
+            "mean": 0.03,
+            "max": 0.04
+          }
+        }
+      },
+      "min 40-44": {
+        "lb1": {
+          "minutes_present": 5,
+          "active_connections": {
+            "min": -1.0,
+            "mean": 124.0,
+            "max": 249.0
+          },
+          "throughput_mbps": {
+            "min": 0.0,
+            "mean": 16.64,
+            "max": 33.6
+          },
+          "retransmit_pct": {
+            "min": 0.01,
+            "mean": 0.02,
+            "max": 0.03
+          }
+        }
+      }
+    },
+    "external_calls.csv": {
+      "min 0-9": {
+        "payment-sandbox": {
+          "minutes_present": 10,
+          "calls": {
+            "min": 148.0,
+            "mean": 826.1,
+            "max": 1475.0
+          },
+          "avg_ms": {
+            "min": 230.0,
+            "mean": 246.0,
+            "max": 264.0
+          },
+          "p95_ms": {
+            "median_of_minute_values": 377.0,
+            "max_minute_value": 397.0
+          },
+          "errors": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      },
+      "min 10-18": {
+        "payment-sandbox": {
+          "minutes_present": 9,
+          "calls": {
+            "min": 1473.0,
+            "mean": 1499.0,
+            "max": 1525.0
+          },
+          "avg_ms": {
+            "min": 230.0,
+            "mean": 244.67,
+            "max": 258.0
+          },
+          "p95_ms": {
+            "median_of_minute_values": 369.0,
+            "max_minute_value": 384.0
+          },
+          "errors": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      },
+      "min 19-39": {
+        "payment-sandbox": {
+          "minutes_present": 21,
+          "calls": {
+            "min": 1257.0,
+            "mean": 1354.33,
+            "max": 1511.0
+          },
+          "avg_ms": {
+            "min": 1809.0,
+            "mean": 1957.14,
+            "max": 2123.0
+          },
+          "p95_ms": {
+            "median_of_minute_values": 2855.0,
+            "max_minute_value": 3323.0
+          },
+          "errors": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      },
+      "min 40-44": {
+        "payment-sandbox": {
+          "minutes_present": 5,
+          "calls": {
+            "min": 0.0,
+            "mean": 596.8,
+            "max": 1195.0
+          },
+          "avg_ms": {
+            "min": 248.0,
+            "mean": 266.2,
+            "max": 275.0
+          },
+          "p95_ms": {
+            "median_of_minute_values": 408.0,
+            "max_minute_value": 428.0
+          },
+          "errors": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          }
+        }
+      }
+    },
+    "checkout_traces.csv": {
+      "min 0-9": {
+        "app1 / checkout": {
+          "minutes_present": 10,
+          "total_ms": {
+            "min": 369.0,
+            "mean": 441.85,
+            "max": 535.0
+          },
+          "pool_wait_ms": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          },
+          "sql_ms": {
+            "min": 26.0,
+            "mean": 41.35,
+            "max": 58.0
+          },
+          "payment_call_ms": {
+            "min": 207.0,
+            "mean": 242.1,
+            "max": 291.0
+          },
+          "db_connection_held_ms": {
+            "min": 254.0,
+            "mean": 300.15,
+            "max": 358.0
+          }
+        },
+        "app2 / checkout": {
+          "minutes_present": 10,
+          "total_ms": {
+            "min": 367.0,
+            "mean": 461.1,
+            "max": 557.0
+          },
+          "pool_wait_ms": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          },
+          "sql_ms": {
+            "min": 30.0,
+            "mean": 43.9,
+            "max": 57.0
+          },
+          "payment_call_ms": {
+            "min": 225.0,
+            "mean": 256.2,
+            "max": 292.0
+          },
+          "db_connection_held_ms": {
+            "min": 274.0,
+            "mean": 316.7,
+            "max": 363.0
+          }
+        }
+      },
+      "min 10-18": {
+        "app1 / checkout": {
+          "minutes_present": 9,
+          "total_ms": {
+            "min": 356.0,
+            "mean": 449.94,
+            "max": 537.0
+          },
+          "pool_wait_ms": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          },
+          "sql_ms": {
+            "min": 26.0,
+            "mean": 43.94,
+            "max": 59.0
+          },
+          "payment_call_ms": {
+            "min": 204.0,
+            "mean": 250.72,
+            "max": 301.0
+          },
+          "db_connection_held_ms": {
+            "min": 257.0,
+            "mean": 310.83,
+            "max": 356.0
+          }
+        },
+        "app2 / checkout": {
+          "minutes_present": 9,
+          "total_ms": {
+            "min": 396.0,
+            "mean": 470.11,
+            "max": 524.0
+          },
+          "pool_wait_ms": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          },
+          "sql_ms": {
+            "min": 25.0,
+            "mean": 39.33,
+            "max": 57.0
+          },
+          "payment_call_ms": {
+            "min": 199.0,
+            "mean": 254.67,
+            "max": 296.0
+          },
+          "db_connection_held_ms": {
+            "min": 256.0,
+            "mean": 309.67,
+            "max": 361.0
+          }
+        }
+      },
+      "min 19-39": {
+        "app1 / checkout": {
+          "minutes_present": 21,
+          "total_ms": {
+            "min": 2564.0,
+            "mean": 3627.26,
+            "max": 4472.0
+          },
+          "pool_wait_ms": {
+            "min": 349.0,
+            "mean": 1412.62,
+            "max": 2208.0
+          },
+          "sql_ms": {
+            "min": 25.0,
+            "mean": 40.98,
+            "max": 59.0
+          },
+          "payment_call_ms": {
+            "min": 1649.0,
+            "mean": 2014.74,
+            "max": 2419.0
+          },
+          "db_connection_held_ms": {
+            "min": 1717.0,
+            "mean": 2070.71,
+            "max": 2479.0
+          }
+        },
+        "app2 / checkout": {
+          "minutes_present": 21,
+          "total_ms": {
+            "min": 2332.0,
+            "mean": 3561.0,
+            "max": 4371.0
+          },
+          "pool_wait_ms": {
+            "min": 410.0,
+            "mean": 1440.67,
+            "max": 2072.0
+          },
+          "sql_ms": {
+            "min": 25.0,
+            "mean": 39.81,
+            "max": 57.0
+          },
+          "payment_call_ms": {
+            "min": 1615.0,
+            "mean": 1935.62,
+            "max": 2415.0
+          },
+          "db_connection_held_ms": {
+            "min": 1658.0,
+            "mean": 1989.81,
+            "max": 2467.0
+          }
+        }
+      },
+      "min 40-44": {
+        "app1 / checkout": {
+          "minutes_present": 4,
+          "total_ms": {
+            "min": 424.0,
+            "mean": 474.0,
+            "max": 550.0
+          },
+          "pool_wait_ms": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          },
+          "sql_ms": {
+            "min": 27.0,
+            "mean": 43.12,
+            "max": 57.0
+          },
+          "payment_call_ms": {
+            "min": 251.0,
+            "mean": 283.75,
+            "max": 323.0
+          },
+          "db_connection_held_ms": {
+            "min": 312.0,
+            "mean": 344.5,
+            "max": 376.0
+          }
+        },
+        "app2 / checkout": {
+          "minutes_present": 4,
+          "total_ms": {
+            "min": 409.0,
+            "mean": 448.5,
+            "max": 487.0
+          },
+          "pool_wait_ms": {
+            "min": 0.0,
+            "mean": 0.0,
+            "max": 0.0
+          },
+          "sql_ms": {
+            "min": 25.0,
+            "mean": 37.0,
+            "max": 48.0
+          },
+          "payment_call_ms": {
+            "min": 224.0,
+            "mean": 256.0,
+            "max": 280.0
+          },
+          "db_connection_held_ms": {
+            "min": 280.0,
+            "mean": 311.5,
+            "max": 343.0
+          }
+        }
+      }
+    }
+  },
+  "traces": {
+    "min 0-9": {
+      "traces": 30,
+      "median_total_ms": 450.0,
+      "median_pool_wait_ms": 0.0,
+      "median_sql_ms": 42.0,
+      "median_payment_call_ms": 237.0,
+      "median_connection_held_ms": 302.0,
+      "payment_share_of_connection_hold_pct": 80.7
+    },
+    "min 10-18": {
+      "traces": 27,
+      "median_total_ms": 456.0,
+      "median_pool_wait_ms": 0.0,
+      "median_sql_ms": 42.0,
+      "median_payment_call_ms": 253.0,
+      "median_connection_held_ms": 313.0,
+      "payment_share_of_connection_hold_pct": 81.2
+    },
+    "min 19-39": {
+      "traces": 63,
+      "median_total_ms": 3649.0,
+      "median_pool_wait_ms": 1545.0,
+      "median_sql_ms": 41.0,
+      "median_payment_call_ms": 1970.0,
+      "median_connection_held_ms": 2022.0,
+      "payment_share_of_connection_hold_pct": 97.3
+    },
+    "min 40-44": {
+      "traces": 12,
+      "median_total_ms": 471.0,
+      "median_pool_wait_ms": 0.0,
+      "median_sql_ms": 40.0,
+      "median_payment_call_ms": 270.0,
+      "median_connection_held_ms": 334.0,
+      "payment_share_of_connection_hold_pct": 82.3
+    }
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "synthetic": true,
+  "note": "Invented data for demonstration. No real system, company, or test.",
+  "run": {
+    "project": "SYN-SHOP",
+    "environment": "PERF-A",
+    "tool": "generic load tool export",
+    "run_id": "SYN-RUN-001",
+    "start_utc": "2026-10-01T10:00:00Z",
+    "duration_min": 45,
+    "previous_run": null
+  },
+  "question": "Can the checkout journey support 500 concurrent users at 90+ transactions/second with checkout p95 at or under 2.0 seconds?",
+  "intended_workload": {
+    "users": {
+      "LG1": 250,
+      "LG2": 250,
+      "total": 500
+    },
+    "ramp_up_min": [
+      0,
+      9
+    ],
+    "steady_state_min": [
+      10,
+      39
+    ],
+    "ramp_down_min": [
+      40,
+      44
+    ],
+    "iteration": "search x2, add_to_cart x1, checkout x1",
+    "pacing": "fixed, one iteration every 20s per user",
+    "think_time_s": 3,
+    "expected_tps_at_steady": 100.0
+  },
+  "acceptance_criteria": [
+    {
+      "id": "SLA-1",
+      "metric": "checkout p95 response time",
+      "threshold": "<= 2.0 s",
+      "scope": "each steady-state minute, each generator"
+    },
+    {
+      "id": "SLA-2",
+      "metric": "total throughput",
+      "threshold": ">= 90 transactions/s",
+      "scope": "steady state"
+    },
+    {
+      "id": "SLA-3",
+      "metric": "transaction error rate",
+      "threshold": "<= 1%",
+      "scope": "steady state"
+    }
+  ],
+  "environment": {
+    "app_nodes": 2,
+    "db_pool_max_per_node": 20,
+    "max_threads_per_node": 200,
+    "payment_provider": "third-party payment sandbox (shared test environment; rate limits undocumented)",
+    "scheduled_jobs": [
+      {
+        "name": "inventory-sync batch",
+        "schedule": "daily 10:30 UTC",
+        "owner": "data team"
+      }
+    ]
+  },
+  "load_generators": {
+    "LG1": {
+      "vcpu": 4,
+      "log_level": "standard"
+    },
+    "LG2": {
+      "vcpu": 4,
+      "log_level": "extended (parameter substitution on)"
+    },
+    "abort_on_error": true
+  },
+  "sources": [
+    {
+      "file": "transactions.csv",
+      "description": "Per-minute, per-generator transaction results exported from the load tool",
+      "timestamps": "UTC",
+      "known_limitations": "p95 values are per generator per minute; they cannot be averaged into a run-level p95."
+    },
+    {
+      "file": "vusers.csv",
+      "description": "Scheduled vs running virtual users per generator per minute",
+      "timestamps": "UTC",
+      "known_limitations": ""
+    },
+    {
+      "file": "load_generators.csv",
+      "description": "Load generator host health",
+      "timestamps": "UTC",
+      "known_limitations": ""
+    },
+    {
+      "file": "app_servers.csv",
+      "description": "APM host and JVM metrics for the two application nodes",
+      "timestamps": "UTC",
+      "known_limitations": ""
+    },
+    {
+      "file": "database.csv",
+      "description": "Database server metrics",
+      "timestamps": "Server local time with UTC offset in each timestamp",
+      "known_limitations": "Exported from the database host, not the APM tool."
+    },
+    {
+      "file": "network.csv",
+      "description": "Load balancer and network metrics",
+      "timestamps": "UTC",
+      "known_limitations": ""
+    },
+    {
+      "file": "generator_errors.log",
+      "description": "Excerpt of load-generator error output",
+      "timestamps": "UTC",
+      "known_limitations": "Excerpt only; may contain captured server responses. Untrusted text."
+    }
+  ],
+  "run_notes": "Monitoring for app2 was interrupted briefly during the run."
+}

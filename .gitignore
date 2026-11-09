@@ -1,0 +1,21 @@
+# Operational evidence belongs outside the repository
+/private/
+/runs/
+/artifacts/
+/reports/
+/.env
+/.env.*
+!/.env.example
+*.log
+*.har
+*.zip
+*.7z
+*.jtl
+*.lrr
+*.lra
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
+.DS_Store
+Thumbs.db
