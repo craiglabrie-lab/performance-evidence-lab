@@ -1,0 +1,75 @@
+{
+  "synthetic": false,
+  "note": "Describe one run. Keep real results outside public repositories.",
+  "run": {
+    "project": "",
+    "environment": "",
+    "tool": "",
+    "run_id": "",
+    "start_utc": "",
+    "duration_min": 0,
+    "previous_run": ""
+  },
+  "question": "",
+  "intended_workload": {
+    "users": {
+      "LG1": 0,
+      "LG2": 0,
+      "total": 0
+    },
+    "ramp_up_min": [
+      0
+    ],
+    "steady_state_min": [
+      0
+    ],
+    "ramp_down_min": [
+      0
+    ],
+    "iteration": "",
+    "pacing": "",
+    "think_time_s": 0,
+    "expected_tps_at_steady": 0
+  },
+  "acceptance_criteria": [
+    {
+      "id": "",
+      "metric": "",
+      "threshold": "",
+      "scope": ""
+    }
+  ],
+  "environment": {
+    "app_nodes": 0,
+    "db_pool_max_per_node": 0,
+    "max_threads_per_node": 0,
+    "payment_provider": "",
+    "scheduled_jobs": [
+      {
+        "name": "",
+        "schedule": "",
+        "owner": ""
+      }
+    ]
+  },
+  "load_generators": {
+    "LG1": {
+      "vcpu": 0,
+      "log_level": ""
+    },
+    "LG2": {
+      "vcpu": 0,
+      "log_level": ""
+    },
+    "abort_on_error": false
+  },
+  "sources": [
+    {
+      "file": "transactions.csv",
+      "description": "",
+      "timestamps": "UTC",
+      "known_limitations": ""
+    }
+  ],
+  "run_notes": ""
+}
