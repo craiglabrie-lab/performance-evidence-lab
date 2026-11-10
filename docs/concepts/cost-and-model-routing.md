@@ -7,7 +7,7 @@
 >   - handoff length and tool-call guidance.
 > - **Concept**: prompt caching layout, enforced token budgets, and a different model family for the Peer Reviewer.
 >
-> The measurements below come from the earlier recorded runs, made with a previous version of the agents and kept in this repository's git history.
+> The measurements below come from the earlier recorded runs, made during development with a previous version of the agents. Those runs are not included in this repository.
 
 ## What the earlier runs cost
 

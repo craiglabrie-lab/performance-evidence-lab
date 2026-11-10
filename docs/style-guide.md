@@ -65,6 +65,17 @@ How everything in this repository is written: documentation, agent role files an
 | computed results summary (`facts.md`) | fact sheet |
 | analysis workflow | the method |
 
+## Wording by root-cause status
+
+Findings use wording that matches their root-cause status (from V2, see [V2 traceability](v2-traceability.md)):
+
+| Status | Wording |
+| --- | --- |
+| Symptom | "Observed…" |
+| Correlated metric | "Correlated with…" |
+| Suspected bottleneck | "Likely contributed to…" |
+| Confirmed root cause | "Root cause confirmed by…" (name the retest or tuning change) |
+
 ## Record IDs
 
 | Prefix | Record | Created by |

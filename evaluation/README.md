@@ -5,7 +5,7 @@
 | [expected-findings.md](expected-findings.md) | The answer key for both synthetic test runs, written before any agent run |
 | [expected-findings.sha256](expected-findings.sha256) | The answer key's hash, committed before the runs so the key cannot be changed to match the results |
 
-**Status:** the recorded agent runs, the single-prompt baseline and the scored results are the next stage of the [roadmap](../docs/product/roadmap.md). An earlier version of the agents was run and scored against both test runs; those results are in the repository's git history and will be replaced by runs of the current agents.
+**Status:** the recorded agent runs, the single-prompt baseline and the scored results are the next stage of the [roadmap](../docs/product/roadmap.md). An earlier version of the agents was run and scored against both test runs during development. Those runs are not included in this repository; runs of the current agents will replace them.
 
 Each test run will be analyzed twice, on the same model with the same computed results summary:
 
