@@ -1,0 +1,81 @@
+{
+  "schema_version": "0.1-draft",
+  "agent": "test-execution-analyst",
+  "run_id": "SYN-RUN-001",
+  "step": "03",
+  "inputs": [
+    "data/scenario.json",
+    "facts.md",
+    "run/01-analysis-plan.md",
+    "run/02-data-inventory.md"
+  ],
+  "execution": {
+    "mode": "sub-agent with its own context",
+    "model": "(model name)"
+  },
+  "records": [
+    {
+      "type": "observation",
+      "id": "OBS-EX-01",
+      "statement": "Running Vusers fell from 500 to 330 between minutes 16 and 22.",
+      "metric": "running_vusers",
+      "value": 330,
+      "unit": "Vusers",
+      "window": {
+        "start_min": 16,
+        "end_min": 22
+      },
+      "evidence": [
+        "facts.json#/load_profile/minutes/22"
+      ]
+    },
+    {
+      "type": "observation",
+      "id": "OBS-EX-02",
+      "statement": "Throughput in minutes 23-39 stayed near 66 TPS against 100 expected.",
+      "metric": "tps",
+      "value": 66.2,
+      "unit": "transactions/s",
+      "window": {
+        "start_min": 30,
+        "end_min": 30
+      },
+      "evidence": [
+        "facts.json#/load_profile/minutes/30"
+      ]
+    },
+    {
+      "type": "test_validity",
+      "id": "VAL-1",
+      "result": "Invalid",
+      "reason": "Load profile not achieved: LG2 lost 170 Vusers to abort-on-error after its CPU saturated.",
+      "usable_for": [
+        "Test harness issues on LG2",
+        "LG1-only response times as observations"
+      ],
+      "not_usable_for": [
+        "Capacity at 500 Vusers",
+        "SLA results",
+        "Baseline regression verdict"
+      ],
+      "evidence": [
+        "OBS-EX-01",
+        "OBS-EX-02"
+      ]
+    },
+    {
+      "type": "recommendation",
+      "id": "REC-EX-1",
+      "rec_type": "test fix",
+      "owner": "Performance test team",
+      "action": "Set LG2 logging to standard and retest",
+      "success_metric": "LG1 and LG2 response times within 10% of each other in every steady-state minute",
+      "disproving_result": "LG2 still diverges with matched logging",
+      "priority": 1
+    }
+  ],
+  "handoff": {
+    "for_next_agent": "Example only. Illustrates the shape of a structured handoff; it is not output from an agent run.",
+    "open_questions": []
+  }
+}

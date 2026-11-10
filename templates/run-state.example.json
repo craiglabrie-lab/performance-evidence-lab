@@ -1,0 +1,22 @@
+{
+  "_note": "EXAMPLE ONLY. Concept: not yet produced by the workflow. See docs/concepts/orchestrator.md.",
+  "run_id": "SYN-RUN-002",
+  "test_run_folder": "examples/02-connection-pool",
+  "workflow_version": "0.1",
+  "state": "AwaitingApproval",
+  "prepared": {"tool": "tools/analyze.py", "facts_sha256": "<sha256 of facts.json>"},
+  "steps": [
+    {"step": "01", "agent": "performance-test-lead", "status": "passed", "output": "run/01-analysis-plan.md",
+     "output_sha256": "<sha256>", "model": "<model>", "tokens": 0, "seconds": 0, "retries": 0, "checks": "passed"},
+    {"step": "02", "agent": "results-monitoring-analyst", "status": "passed", "output": "run/02-data-inventory.md",
+     "output_sha256": "<sha256>", "model": "<model>", "tokens": 0, "seconds": 0, "retries": 0, "checks": "passed"},
+    {"step": "09", "agent": "test-report-author", "status": "passed", "output": "TEST-SUMMARY.md",
+     "output_sha256": "<sha256>", "model": "<model>", "tokens": 0, "seconds": 0, "retries": 1,
+     "checks": "passed after retry: report check 1 failed (number not found in facts.json)",
+     "saved_by_orchestrator": true}
+  ],
+  "pauses": [
+    {"at_step": "09", "reason": "HTTP 429 usage limit", "paused_utc": "<time>", "resumed_utc": "<time>"}
+  ],
+  "approval": {"status": "pending", "approver": null, "decision": null, "reason": null, "decided_utc": null}
+}

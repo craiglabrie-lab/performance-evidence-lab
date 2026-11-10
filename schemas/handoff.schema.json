@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/craiglabrie-lab/performance-evidence-lab/schemas/handoff.schema.json",
+  "title": "Performance Evidence Lab handoff (DRAFT, concept only)",
+  "description": "Draft schema for structured handoffs between agents. Concept: not yet produced or validated by the workflow. See docs/concepts/handoff-schema.md.",
+  "type": "object",
+  "required": ["schema_version", "agent", "run_id", "step", "inputs", "execution", "records", "handoff"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "0.1-draft"},
+    "agent": {
+      "enum": ["performance-test-lead", "results-monitoring-analyst", "test-execution-analyst", "results-analyst",
+               "application-apm-engineer", "database-engineer", "infrastructure-network-engineer",
+               "peer-reviewer", "test-report-author"]
+    },
+    "run_id": {"type": "string"},
+    "step": {"type": "string", "pattern": "^(0[1-9]|08a|08b)$"},
+    "inputs": {"type": "array", "items": {"type": "string"}},
+    "execution": {
+      "type": "object",
+      "required": ["mode", "model"],
+      "properties": {
+        "mode": {"const": "sub-agent with its own context"},
+        "model": {"type": "string"},
+        "tokens": {"type": "integer"},
+        "seconds": {"type": "number"}
+      }
+    },
+    "records": {"type": "array", "items": {"$ref": "#/$defs/record"}},
+    "handoff": {
+      "type": "object",
+      "required": ["for_next_agent"],
+      "properties": {
+        "for_next_agent": {"type": "string"},
+        "open_questions": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  },
+  "$defs": {
+    "ids": {"type": "array", "items": {"type": "string", "pattern": "^(DATA|GAP|VAL|OBS|DW|HYP|RC|F|REC|GNG|SLA)-[A-Z0-9-]+$|^facts\\.json#/.+$"}},
+    "status": {"enum": ["Symptom", "Correlated metric", "Suspected bottleneck", "Confirmed root cause"]},
+    "confidence": {
+      "type": "object",
+      "required": ["level", "reason"],
+      "properties": {"level": {"enum": ["High", "Medium", "Low"]}, "reason": {"type": "string"}}
+    },
+    "window": {
+      "type": "object",
+      "required": ["start_min", "end_min"],
+      "properties": {"start_min": {"type": "integer"}, "end_min": {"type": "integer"}}
+    },
+    "record": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": {"enum": ["data_item", "gap", "test_validity", "observation", "sla_result", "degradation_window",
+                          "hypothesis", "elimination", "review_comment", "resolution", "finding",
+                          "recommendation", "go_no_go"]},
+        "id": {"type": "string"},
+        "notes": {"type": "string"}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"const": "test_validity"}}},
+         "then": {"required": ["result", "reason", "usable_for", "not_usable_for", "evidence"],
+                  "properties": {"result": {"enum": ["Valid", "Valid with limitations", "Invalid"]},
+                                 "reason": {"type": "string"},
+                                 "usable_for": {"type": "array", "items": {"type": "string"}},
+                                 "not_usable_for": {"type": "array", "items": {"type": "string"}},
+                                 "evidence": {"$ref": "#/$defs/ids"}}}},
+        {"if": {"properties": {"type": {"const": "observation"}}},
+         "then": {"required": ["statement", "metric", "value", "unit", "window", "evidence"],
+                  "properties": {"statement": {"type": "string"}, "metric": {"type": "string"},
+                                 "value": {"type": "number"}, "unit": {"type": "string"},
+                                 "window": {"$ref": "#/$defs/window"},
+                                 "load_generator": {"type": "string"}, "node": {"type": "string"},
+                                 "transaction": {"type": "string"}, "evidence": {"$ref": "#/$defs/ids"}}}},
+        {"if": {"properties": {"type": {"const": "sla_result"}}},
+         "then": {"required": ["sla", "result", "reason"],
+                  "properties": {"sla": {"type": "string"}, "result": {"enum": ["Pass", "Fail", "Not evaluated"]},
+                                 "window": {"$ref": "#/$defs/window"}, "reason": {"type": "string"},
+                                 "evidence": {"$ref": "#/$defs/ids"}}}},
+        {"if": {"properties": {"type": {"const": "hypothesis"}}},
+         "then": {"required": ["tier", "mechanism", "supporting", "status", "confidence", "confirming_test"],
+                  "properties": {"tier": {"enum": ["application", "database", "infrastructure", "test harness", "external dependency"]},
+                                 "mechanism": {"type": "string"}, "supporting": {"$ref": "#/$defs/ids"},
+                                 "contradicting": {"$ref": "#/$defs/ids"},
+                                 "alternatives": {"type": "array", "items": {"type": "string"}},
+                                 "status": {"$ref": "#/$defs/status"}, "confidence": {"$ref": "#/$defs/confidence"},
+                                 "confirming_test": {"type": "string"}}}},
+        {"if": {"properties": {"type": {"const": "review_comment"}}},
+         "then": {"required": ["target", "issue", "severity", "requested_change"],
+                  "properties": {"target": {"type": "string"}, "issue": {"type": "string"},
+                                 "severity": {"enum": ["major", "minor"]}, "requested_change": {"type": "string"}}}},
+        {"if": {"properties": {"type": {"const": "recommendation"}}},
+         "then": {"required": ["rec_type", "owner", "action", "success_metric", "disproving_result", "priority"],
+                  "properties": {"rec_type": {"enum": ["test fix", "monitoring", "tuning", "retest"]},
+                                 "owner": {"type": "string"}, "action": {"type": "string"},
+                                 "success_metric": {"type": "string"}, "disproving_result": {"type": "string"},
+                                 "priority": {"type": "integer"}}}},
+        {"if": {"properties": {"type": {"const": "go_no_go"}}},
+         "then": {"required": ["recommendation", "strongest_alternative", "uncertainty", "would_change_if", "approver"],
+                  "properties": {"recommendation": {"type": "string"}, "strongest_alternative": {"type": "string"},
+                                 "uncertainty": {"type": "string"}, "would_change_if": {"type": "string"},
+                                 "approver": {"const": "human release approver"}}}}
+      ]
+    }
+  }
+}

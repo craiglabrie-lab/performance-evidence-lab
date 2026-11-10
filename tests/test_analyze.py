@@ -109,3 +109,12 @@ def test_graphs_are_written(tmp_path):
     made = analyze.write_charts(facts, tmp_path)
     assert {name for _, name in made} == {"running-vusers.svg", "throughput.svg", "checkout-p95.svg", "errors.svg"}
     assert all((tmp_path / name).read_text().startswith("<svg") for _, name in made)
+
+
+def test_draft_handoff_example_validates_against_draft_schema():
+    import json
+    jsonschema = __import__("pytest").importorskip("jsonschema")
+    schema = json.loads((ROOT / "schemas" / "handoff.schema.json").read_text())
+    jsonschema.Draft202012Validator.check_schema(schema)
+    example = json.loads((ROOT / "schemas" / "examples" / "03-test-execution.example.json").read_text())
+    jsonschema.validate(example, schema)

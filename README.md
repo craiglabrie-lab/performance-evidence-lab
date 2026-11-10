@@ -18,7 +18,7 @@ It is built on a lesson from 17 years of performance testing: **before you diagn
 | Deterministic tooling: transaction summary, p90/p95/p99, errors by type, graphs, baseline comparison, Utilization Law headroom (with tests) | Implemented |
 | Three synthetic test runs: a baseline and two scenarios, with an answer key written in advance | Implemented |
 | Recorded agent runs of the current agents, scored against the answer key | Planned: next stage |
-| Handoff schema, orchestrator with checkpoints, agent tool contracts, cost routing, evaluation harness | Concept: design documents to follow, each labeled as not yet implemented |
+| Handoff schema (draft JSON Schema included), orchestrator with checkpoints and human sign-off, agent tool contracts, cost and model routing, evaluation harness, multi-run regression tracking | Concept: [design documents](docs/concepts/README.md), each labeled as not yet implemented |
 
 All data is synthetic. Nothing has been tested on production results. The [persona review](docs/reviews/2026-11-persona-review.md) records how the repository was reviewed by a performance engineer, a performance tester and an AI engineer, and the status of each point.
 
@@ -134,7 +134,7 @@ pytest -q
 
 - **Synthetic test runs.** The same author designed the test runs and the agent checklists, so they show the workflow working on cases it was designed for.
 - **One model for every agent.** The Peer Reviewer has its own context, not its own model.
-- **The orchestrator is a prompt, not code.** There are no checkpoints or resume yet (concept to follow).
+- **The orchestrator is a prompt, not code.** There are no checkpoints or resume yet (see the [orchestrator concept](docs/concepts/orchestrator.md)).
 - **Tool lists are enforced; file-level limits are not.** Each sub-agent's input files are instructions, and Python can read any file.
 - **Analysis only.** The agents never start a load test, change a system or send anything. The go/no-go recommendation goes to a human release approver.
 
@@ -148,9 +148,10 @@ agents/           the nine agent role files
 tools/            analyze.py (computed results summary and graphs) and generate_synthetic.py
 examples/         baseline run 00 and test runs 01 and 02: data, computed results summary, graphs
 evaluation/       answer key and its pre-run hash
+schemas/          draft handoff JSON Schema and example (concept)
 prompts/          single-prompt version of the workflow
 templates/        test run description, go/no-go recommendation, recommendation
-docs/             vision and scope, how the workflow runs, data and safety, decisions, reviews, roadmap, glossary, style guide
+docs/             vision and scope, how the workflow runs, data and safety, decisions, concepts, reviews, roadmap, glossary, style guide
 tests/            tests for the deterministic tooling
 ```
 

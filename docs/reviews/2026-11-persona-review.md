@@ -4,14 +4,14 @@ The repository was reviewed from three points of view: a performance engineer, a
 
 **Status key**
 - **Implemented**: built and tested in this repository.
-- **Concept**: the design will be written up as a concept document, labeled as not yet implemented.
+- **Concept**: designed in a concept document in [docs/concepts/](../concepts/README.md), labeled as not yet implemented.
 - **Planned**: needs recorded agent runs or real data, and is on the [roadmap](../product/roadmap.md).
 
 ## Performance engineer
 
 | # | Feedback | Status | Where |
 | --- | --- | --- | --- |
-| PE-1 | No baseline or regression comparison. Real analysis compares against the last accepted run or build. | **Implemented**: a baseline run (SYN-RUN-000, build 4.12.0), a `baseline` block in `scenario.json`, and a baseline comparison with a regression threshold in the computed results summary. The baseline is used for comparison, never to fill gaps. Concept doc for multi-run regression tracking to follow. | `examples/00-baseline/`, `tools/analyze.py`, [rules](../../method/rules.md) |
+| PE-1 | No baseline or regression comparison. Real analysis compares against the last accepted run or build. | **Implemented**: a baseline run (SYN-RUN-000, build 4.12.0), a `baseline` block in `scenario.json`, and a baseline comparison with a regression threshold in the computed results summary. The baseline is used for comparison, never to fill gaps. Multi-run tracking is a concept: [baseline and regression tracking](../concepts/baseline-and-regression.md). | `examples/00-baseline/`, `tools/analyze.py`, [rules](../../method/rules.md) |
 | PE-2 | No test type. Load, stress, soak and spike tests need different checks. | **Implemented**: `test_type` in `scenario.json`, and test-type checks in the Performance Test Lead, Test Execution Analyst, Results Analyst and Application & APM Engineer roles. Only load tests have example data so far. | `agents/` |
 | PE-3 | No capacity analysis: throughput curve, service demand, headroom. | **Implemented**: Utilization Law service demand and throughput at 80% CPU per tier and window, plus headroom checks in each engineer's role. | `tools/analyze.py`, `agents/*-engineer.md` |
 | PE-4 | Environment parity is missing from test validity. | **Implemented**: `environment_parity` in `scenario.json` (scale, database volume, cache warm-up, external dependencies), checked by the Test Execution Analyst and used to limit production projections. | `agents/test-execution-analyst.md` |
@@ -31,12 +31,12 @@ The repository was reviewed from three points of view: a performance engineer, a
 
 | # | Feedback | Status | Where |
 | --- | --- | --- | --- |
-| AI-1 | The orchestrator is a prompt: no state machine, checkpoints, retries or resume. | **Concept**: orchestrator design with run state, checkpoints, resume from step N, and a human sign-off step. | Concept document to follow |
-| AI-2 | Handoffs are free-form Markdown. | **Concept**: JSON Schema for findings, SLA results, hypotheses and review comments, validated after each step and rendered to Markdown. | Concept document to follow |
+| AI-1 | The orchestrator is a prompt: no state machine, checkpoints, retries or resume. | **Concept**: orchestrator design with run state, checkpoints, resume from step N, and a human sign-off step. | [Orchestrator](../concepts/orchestrator.md), with an example run-state file |
+| AI-2 | Handoffs are free-form Markdown. | **Concept**: JSON Schema for findings, SLA results, hypotheses and review comments, validated after each step and rendered to Markdown. A draft schema and an example exist, and a test validates the example. | [Handoff schema](../concepts/handoff-schema.md), `schemas/` |
 | AI-3 | Guardrails are instructions only. | **Implemented in part**: each role is now a Claude Code sub-agent in `.claude/agents/` with an enforced tool list (no web access, no launching other agents). File-level limits are still instructions, and this is stated. | `.claude/agents/`, [how the workflow runs](../architecture/how-the-workflow-runs.md) |
-| AI-4 | Cost and context are not engineered: every agent reads everything. | **Concept**: per-agent context slices, model routing (smaller models for routine roles), prompt caching and token budgets per step. | Concept document to follow |
-| AI-5 | The case for multiple agents is not shown yet. | **Concept**: tool contracts per engineer (APM, database and load testing tool queries, for example over MCP) that a single context could not hold. | Concept document to follow |
-| AI-6 | The evaluation would not convince an AI engineer. | **Concept, then Planned**: evaluation harness with repeated runs, automated scoring from structured output, and a judge on a different model. The answer key and its pre-run hash are already in place. | [evaluation](../../evaluation/README.md) |
+| AI-4 | Cost and context are not engineered: every agent reads everything. | **Concept**: per-agent context slices, model routing (smaller models for routine roles), prompt caching and token budgets per step. | [Cost and model routing](../concepts/cost-and-model-routing.md) |
+| AI-5 | The case for multiple agents is not shown yet. | **Concept**: tool contracts per engineer (APM, database and load testing tool queries, for example over MCP) that a single context could not hold. | [Agent tool contracts](../concepts/agent-tool-contracts.md) |
+| AI-6 | The evaluation would not convince an AI engineer. | **Concept, then Planned**: evaluation harness with repeated runs, automated scoring from structured output, and a judge on a different model. The answer key and its pre-run hash are already in place. | [Evaluation harness](../concepts/evaluation-harness.md) |
 | AI-7 | No human approval point or observability. | **Implemented in part**: the go/no-go recommendation is now explicitly for a human release approver, and the test summary report has an approval block. Step-level tracing is part of the orchestrator concept (AI-1). | `agents/performance-test-lead.md`, `agents/test-report-author.md` |
 
 ## Role names

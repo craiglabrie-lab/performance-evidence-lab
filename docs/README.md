@@ -11,5 +11,6 @@
 | What comes next | [Roadmap](product/roadmap.md) |
 | Terms | [Glossary](product/glossary.md) |
 | Writing conventions | [Style guide](style-guide.md) |
+| Designs not yet implemented | [Concept documents](concepts/README.md) |
 | Reviews of the repository and their status | [Persona review, November 2026](reviews/2026-11-persona-review.md) |
 | Where the workflow came from | [Origins](origins.md) |
