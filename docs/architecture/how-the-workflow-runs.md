@@ -13,7 +13,9 @@ A test run folder containing `data/scenario.json` (run identity, test objective,
    - flags possible prompt-injection text in logs.
 
    - builds the transaction summary table, errors by type and the baseline comparison;
-   - calculates Utilization Law service demand and CPU headroom per tier;
+   - validates the inputs (required fields and columns, malformed values, elapsed minutes against timestamps, duplicates) and lists every problem under "Input checks";
+   - calculates a CPU-bound throughput ceiling per tier (Utilization Law), flagged where another resource is saturated;
+   - checks whether the baseline comparison is comparable;
    - draws the standard graphs: running Vusers, throughput, checkout p95 and errors over time.
 
    It writes `facts.md`, `facts.json`, `charts/*.svg`, and the same summary split into section files in `facts/`, so each agent reads only its slice.

@@ -48,5 +48,5 @@ V2 was reconstructed from a vendor MCP demonstration workflow and extended with 
   - the multi-agent team with a Peer Reviewer, and the resolution of review comments;
   - deterministic tooling;
   - graphs;
-  - Utilization Law headroom;
+  - a conditional CPU-bound throughput ceiling (Utilization Law);
   - a human release approver for the go/no-go recommendation.

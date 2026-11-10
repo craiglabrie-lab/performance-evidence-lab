@@ -55,13 +55,15 @@ From `transaction_summary.csv`, the load tool's run-level summary. Response time
 
 Compares this run with the baseline run. Baseline data is never used to fill gaps in this run. A transaction is flagged when p90 or p95 is more than 10% slower than the baseline.
 
+**Not comparable. Shown for context only, not a regression verdict:** planned load not running in this run for 23 steady-state minutes (first at minute 17).
+
 Steady-state throughput: 75.4 TPS against 100.1 TPS in the baseline (-24.7%).
 
 | Transaction | Avg (base → now) | p90 (base → now) | p95 (base → now) | p99 (base → now) | Error % (base → now) | Regression |
 | --- | --- | --- | --- | --- | --- | --- |
-| search | 0.6 → 0.91 (+51.7%) | 0.89 → 2.04 (+129.2%) | 1.01 → 2.65 (+162.4%) | 1.28 → 3.81 (+197.7%) | 0.2 → 2.06 | YES |
-| add_to_cart | 0.4 → 0.6 (+50.0%) | 0.59 → 1.34 (+127.1%) | 0.67 → 1.74 (+159.7%) | 0.86 → 2.48 (+188.4%) | 0.19 → 2.12 | YES |
-| checkout | 0.85 → 1.29 (+51.8%) | 1.25 → 2.87 (+129.6%) | 1.42 → 3.7 (+160.6%) | 1.81 → 5.31 (+193.4%) | 0.21 → 2.12 | YES |
+| search | 0.6 → 0.91 (+51.7%) | 0.89 → 2.04 (+129.2%) | 1.01 → 2.65 (+162.4%) | 1.28 → 3.81 (+197.7%) | 0.2 → 2.06 | n/a (not comparable) |
+| add_to_cart | 0.4 → 0.6 (+50.0%) | 0.59 → 1.34 (+127.1%) | 0.67 → 1.74 (+159.7%) | 0.86 → 2.48 (+188.4%) | 0.19 → 2.12 | n/a (not comparable) |
+| checkout | 0.85 → 1.29 (+51.8%) | 1.25 → 2.87 (+129.6%) | 1.42 → 3.7 (+160.6%) | 1.81 → 5.31 (+193.4%) | 0.21 → 2.12 | n/a (not comparable) |
 
 ## Errors by type
 
@@ -78,7 +80,7 @@ Steady-state throughput: 75.4 TPS against 100.1 TPS in the baseline (-24.7%).
 
 ## SLA results (steady state)
 
-Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged. First minute any SLA failed: 16.
+Calculated from the data only; the Test Execution Analyst decides whether the run is valid enough to report these as SLA results. Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged. First minute any SLA failed: 16.
 
 | SLA | Metric | Threshold | Evaluation | Result | Minutes Pass / Fail / Not evaluated | Window value | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |

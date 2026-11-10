@@ -101,7 +101,8 @@ def test_capacity_uses_utilization_law():
     cap = analyze.analyze(S0)["capacity"]["windows"]["min 10-39"]
     app1 = cap["app1"]
     assert abs(app1["cpu_pct_per_tps"] * app1["tps_handled"] - app1["mean_cpu_pct"]) < 0.2
-    assert abs(app1["tps_at_80pct_cpu"] - 80 / app1["cpu_pct_per_tps"]) < 0.2
+    assert abs(app1["cpu_bound_ceiling_tps"] - 80 / app1["cpu_pct_per_tps"]) < 0.2
+    assert app1["cpu_is_limiting"] and app1["other_limits_seen"] == []
 
 
 def test_graphs_are_written(tmp_path):
@@ -220,3 +221,75 @@ def test_window_response_time_uses_run_summary_never_averages(tmp_path):
     (data / "transaction_summary.csv").unlink()
     res = slas(data)["SLA-1"]
     assert res["result"] == "Not evaluated" and "cannot be averaged" in res["reason"]
+
+
+# ---------------------------------------------------------------- input validation and data boundaries
+def test_missing_scenario_fields_block_analysis(tmp_path):
+    import pytest
+    data = copy_run(tmp_path)
+    sc = json.loads((data / "scenario.json").read_text())
+    del sc["workload_model"]["steady_state_min"]
+    sc["run"]["start_utc"] = "not a time"
+    (data / "scenario.json").write_text(json.dumps(sc))
+    with pytest.raises(analyze.InputError) as e:
+        analyze.analyze(data)
+    assert "steady_state_min" in str(e.value) and "start_utc" in str(e.value)
+
+
+def test_missing_required_column_blocks_analysis(tmp_path):
+    import pytest
+    data = copy_run(tmp_path)
+    rows = list(csv.DictReader((data / "vusers.csv").open()))
+    with (data / "vusers.csv").open("w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=[c for c in rows[0] if c != "running_vusers"])
+        w.writeheader()
+        w.writerows({k: v for k, v in r.items() if k != "running_vusers"} for r in rows)
+    with pytest.raises(analyze.InputError, match="running_vusers"):
+        analyze.analyze(data)
+
+
+def test_malformed_values_are_missing_not_zero(tmp_path):
+    data = copy_run(tmp_path, S0)
+    rewrite_csv(data / "transactions.csv",
+                change=lambda r: {**r, "count": "abc"} if r["elapsed_min"] == "20" and r["generator"] == "LG1"
+                and r["transaction"] == "search" else
+                ({**r, "p95_s": "n/a"} if r["elapsed_min"] == "21" and r["generator"] == "LG2"
+                 and r["transaction"] == "checkout" else r))
+    f = analyze.analyze(data)
+    msgs = " ".join(c["message"] for c in f["input_checks"])
+    assert "malformed" in msgs and "non-numeric p95_s" in msgs
+    sla = f["sla_results"]["slas"]
+    assert sla["SLA-1"]["per_minute"][21]["result"] == "Not evaluated"
+    assert sla["SLA-1"]["result"] == "Not evaluated"
+
+
+def test_elapsed_minutes_are_checked_against_timestamps(tmp_path):
+    data = copy_run(tmp_path, S0)
+    rewrite_csv(data / "vusers.csv", change=lambda r: {**r, "elapsed_min": "99"} if r["elapsed_min"] == "12" else r)
+    f = analyze.analyze(data)
+    assert any("disagrees with the timestamp" in c["message"] for c in f["input_checks"])
+    assert {m["elapsed_min"] for m in f["load_profile"]["minutes"]} == set(range(45))
+
+
+def test_baseline_comparison_is_qualified():
+    s1, s2 = analyze.analyze(S1)["baseline"], analyze.analyze(S2)["baseline"]
+    assert s1["comparable"] is False and "planned load not running" in s1["not_comparable_because"][0]
+    assert all(t["regression"] is None and t["slower_than_threshold"] for t in s1["transactions"])
+    assert s2["comparable"] is True and all(t["regression"] for t in s2["transactions"])
+
+
+def test_baseline_not_comparable_when_design_differs(tmp_path):
+    data = copy_run(tmp_path)
+    shutil.copytree(S0, tmp_path / "base")
+    sc = json.loads((data / "scenario.json").read_text())
+    sc["baseline"]["data_dir"] = str(tmp_path / "base")
+    sc["test_type"] = "soak"
+    (data / "scenario.json").write_text(json.dumps(sc))
+    bc = analyze.analyze(data)["baseline"]
+    assert bc["comparable"] is False and any("test type differs" in r for r in bc["not_comparable_because"])
+
+
+def test_cpu_ceiling_flags_other_limits():
+    cap = analyze.analyze(S2)["capacity"]["windows"]["min 19-39"]["app1"]
+    assert cap["cpu_is_limiting"] is False
+    assert any("connection pool" in x for x in cap["other_limits_seen"])

@@ -15,7 +15,7 @@ It is built on a lesson from 17 years of performance testing: **before you diagn
 | Part | Status |
 | --- | --- |
 | Analysis workflow, nine agent role files, Claude Code sub-agent definitions | Implemented |
-| Deterministic tooling: transaction summary, p90/p95/p99, errors by type, graphs, baseline comparison, Utilization Law headroom (with tests) | Implemented |
+| Deterministic tooling: transaction summary, p90/p95/p99, errors by type, graphs, baseline comparison with comparability checks, CPU-bound throughput ceiling (conditional), input validation (with tests) | Implemented |
 | Three synthetic test runs: a baseline and two scenarios, with an answer key written in advance | Implemented |
 | Cost controls: per-agent context slices, smaller-model routing for three roles, lean handoffs ([ADR-0009](docs/decisions/0009-cost-controls.md)) | Implemented, not yet measured |
 | Recorded agent runs of the current agents, scored against the answer key | Planned: next stage, starting with test run 02 |
@@ -92,11 +92,11 @@ Before any agent runs, [`tools/analyze.py`](tools/analyze.py) builds a computed 
 - **Test run overview**: test type, build, baseline run, environment parity, scripts, test data, runtime settings.
 - **Transaction summary**: count, passed, failed, error %, and min, average, p90, p95, p99, max and standard deviation per transaction and load generator.
 - **Graphs**: running Vusers, throughput, checkout p95 and errors over time.
-- **Baseline comparison**: p90, p95 and p99 change per transaction against the baseline run, with a regression threshold.
+- **Baseline comparison**: p90, p95 and p99 change per transaction against the baseline run, with a regression threshold. A comparison is marked *not comparable* (context only, no regression verdict) when the test design or environment differs, the planned load was not running, or data is missing.
 - **Errors by type**: client timeouts, HTTP 5xx and content check failures.
-- **Capacity**: Utilization Law service demand and throughput at 80% CPU for each tier.
+- **Capacity**: a CPU-bound throughput ceiling per tier (Utilization Law). It is a conditional estimate, not capacity: windows where a connection pool, threads or pool wait are saturated are flagged as "CPU is not the limiting resource".
 - **Load profile by minute**: scheduled and running Vusers, TPS, error rate, and implied cycle time (Little's Law).
-- **Data inventory**: coverage, monitoring gaps, time zone normalization, and flagged prompt-injection text.
+- **Input checks and data inventory**: required fields and columns, malformed values (treated as missing, never zero), elapsed minutes checked against timestamps, duplicates, coverage, monitoring gaps, time zone normalization, and flagged prompt-injection text.
 
 ![Checkout p95 response time by load generator, test run 01](examples/01-generator-saturation/charts/checkout-p95.svg)
 

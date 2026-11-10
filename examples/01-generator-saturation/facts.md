@@ -55,13 +55,15 @@ From `transaction_summary.csv`, the load tool's run-level summary. Response time
 
 Compares this run with the baseline run. Baseline data is never used to fill gaps in this run. A transaction is flagged when p90 or p95 is more than 10% slower than the baseline.
 
+**Not comparable. Shown for context only, not a regression verdict:** planned load not running in this run for 23 steady-state minutes (first at minute 17).
+
 Steady-state throughput: 75.4 TPS against 100.1 TPS in the baseline (-24.7%).
 
 | Transaction | Avg (base → now) | p90 (base → now) | p95 (base → now) | p99 (base → now) | Error % (base → now) | Regression |
 | --- | --- | --- | --- | --- | --- | --- |
-| search | 0.6 → 0.91 (+51.7%) | 0.89 → 2.04 (+129.2%) | 1.01 → 2.65 (+162.4%) | 1.28 → 3.81 (+197.7%) | 0.2 → 2.06 | YES |
-| add_to_cart | 0.4 → 0.6 (+50.0%) | 0.59 → 1.34 (+127.1%) | 0.67 → 1.74 (+159.7%) | 0.86 → 2.48 (+188.4%) | 0.19 → 2.12 | YES |
-| checkout | 0.85 → 1.29 (+51.8%) | 1.25 → 2.87 (+129.6%) | 1.42 → 3.7 (+160.6%) | 1.81 → 5.31 (+193.4%) | 0.21 → 2.12 | YES |
+| search | 0.6 → 0.91 (+51.7%) | 0.89 → 2.04 (+129.2%) | 1.01 → 2.65 (+162.4%) | 1.28 → 3.81 (+197.7%) | 0.2 → 2.06 | n/a (not comparable) |
+| add_to_cart | 0.4 → 0.6 (+50.0%) | 0.59 → 1.34 (+127.1%) | 0.67 → 1.74 (+159.7%) | 0.86 → 2.48 (+188.4%) | 0.19 → 2.12 | n/a (not comparable) |
+| checkout | 0.85 → 1.29 (+51.8%) | 1.25 → 2.87 (+129.6%) | 1.42 → 3.7 (+160.6%) | 1.81 → 5.31 (+193.4%) | 0.21 → 2.12 | n/a (not comparable) |
 
 ## Errors by type
 
@@ -76,24 +78,28 @@ Steady-state throughput: 75.4 TPS against 100.1 TPS in the baseline (-24.7%).
 | min 40-44 | LG1 | 6005 | 12 | 0 | 1 | 11 |
 | min 40-44 | LG2 | 3474 | 146 | 114 | 0 | 32 |
 
-## Capacity: Utilization Law
+## Capacity: CPU-bound throughput ceiling (conditional estimate)
 
-Service demand as CPU % per transaction/s (U = X × D), and the throughput each tier could handle at 80% CPU. Assumptions: Even load balancing across app nodes; CPU scales linearly with throughput; CPU is the limiting resource. Applies to this test environment only.
+Utilization Law (U = X × D): CPU % per transaction/s, and the throughput each tier would reach at 80% CPU **if CPU were the only limit**. This is not the tier's capacity. When another resource is saturated, it limits throughput first. Only valid if CPU is the limiting resource. Also assumes even load balancing across app nodes and CPU that scales linearly with throughput. Applies to this test environment only; do not scale to production without stating the ratio.
 
-| Window | Tier | Mean CPU % | TPS handled | CPU % per TPS | TPS at 80% CPU |
-| --- | --- | --- | --- | --- | --- |
-| min 0-9 | app1 | 34.5 | 27.5 | 1.253 | 63.8 |
-| min 0-9 | app2 | 33.8 | 27.5 | 1.23 | 65.1 |
-| min 0-9 | database | 19.2 | 55.0 | 0.349 | 228.9 |
-| min 10-15 | app1 | 56.1 | 50.1 | 1.12 | 71.4 |
-| min 10-15 | app2 | 54.6 | 50.1 | 1.091 | 73.3 |
-| min 10-15 | database | 30.0 | 100.2 | 0.3 | 267.0 |
-| min 16-39 | app1 | 40.6 | 34.6 | 1.173 | 68.2 |
-| min 16-39 | app2 | 41.0 | 34.6 | 1.185 | 67.5 |
-| min 16-39 | database | 25.5 | 69.2 | 0.369 | 217.1 |
-| min 40-44 | app1 | 23.4 | 19.7 | 1.184 | 67.6 |
-| min 40-44 | app2 | 22.9 | 19.7 | 1.16 | 69.0 |
-| min 40-44 | database | 13.4 | 39.5 | 0.34 | 235.4 |
+| Window | Tier | Mean CPU % | TPS handled | CPU % per TPS | CPU-bound ceiling (TPS) | Other limits seen |
+| --- | --- | --- | --- | --- | --- | --- |
+| min 0-9 | app1 | 34.5 | 27.5 | 1.253 | 63.8 | none seen |
+| min 0-9 | app2 | 33.8 | 27.5 | 1.23 | 65.1 | none seen |
+| min 0-9 | database | 19.2 | 55.0 | 0.349 | 228.9 | not checked |
+| min 10-15 | app1 | 56.1 | 50.1 | 1.12 | 71.4 | none seen |
+| min 10-15 | app2 | 54.6 | 50.1 | 1.091 | 73.3 | none seen |
+| min 10-15 | database | 30.0 | 100.2 | 0.3 | 267.0 | not checked |
+| min 16-39 | app1 | 40.6 | 34.6 | 1.173 | 68.2 | none seen |
+| min 16-39 | app2 | 41.0 | 34.6 | 1.185 | 67.5 | none seen |
+| min 16-39 | database | 25.5 | 69.2 | 0.369 | 217.1 | not checked |
+| min 40-44 | app1 | 23.4 | 19.7 | 1.184 | 67.6 | none seen |
+| min 40-44 | app2 | 22.9 | 19.7 | 1.16 | 69.0 | none seen |
+| min 40-44 | database | 13.4 | 39.5 | 0.34 | 235.4 | not checked |
+
+## Input checks
+
+All listed files loaded. No malformed values, timestamp mismatches or duplicate rows found.
 
 ## Data inventory
 
@@ -167,7 +173,7 @@ Pacing: 20.0s. implied_cycle_s = running users / iterations per second (one chec
 
 ## SLA results (steady state)
 
-Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged. First minute any SLA failed: 16.
+Calculated from the data only; the Test Execution Analyst decides whether the run is valid enough to report these as SLA results. Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged. First minute any SLA failed: 16.
 
 | SLA | Metric | Threshold | Evaluation | Result | Minutes Pass / Fail / Not evaluated | Window value | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |

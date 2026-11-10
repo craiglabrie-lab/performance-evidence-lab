@@ -10,7 +10,8 @@
 | Degradation window | A time range the Results Analyst hands to the engineers, for example minutes 19–39. |
 | Environment parity | How closely the test environment matches production: scale, data volume, configuration and external dependencies. |
 | Go/no-go recommendation | The Performance Test Lead's recommendation on whether the results support release, with the retest or tuning plan. |
-| Headroom | How much more throughput a tier can take before reaching a utilization limit, such as 80% CPU. |
+| CPU-bound throughput ceiling | The throughput a tier would reach at 80% CPU if CPU were its only limit (Utilization Law). A conditional estimate, not capacity. |
+| Headroom | How much more throughput a tier can take before reaching a limit: CPU, a connection pool, threads or another resource. |
 | Implied cycle time | Running Vusers ÷ iterations per second (Little's Law). With fixed pacing it should equal the pacing interval. A larger value means iterations are running late. |
 | Load generator | A machine that runs Vusers. A saturated load generator adds its own delay to response times and can drop Vusers. |
 | Load profile | The number of Vusers, ramp-up, steady state and ramp-down a test is designed to apply. |

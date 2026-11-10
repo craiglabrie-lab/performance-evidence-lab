@@ -75,18 +75,106 @@ def num(value):
         return None
 
 
-def add_elapsed(rows: list[dict], start: datetime) -> str | None:
-    """Ensure every row has elapsed_min and time_utc. Returns the source time column."""
+class InputError(ValueError):
+    """The test run folder cannot be analyzed. The message lists every blocking problem."""
+
+
+REQUIRED_SCENARIO = {
+    "run": ["run_id", "start_utc", "duration_min"],
+    "workload_model": ["users", "ramp_up_min", "steady_state_min", "ramp_down_min", "pacing"],
+}
+REQUIRED_COLUMNS = {
+    "transactions.csv": ["generator", "transaction", "count", "passed", "failed"],
+    "vusers.csv": ["generator", "scheduled_vusers", "running_vusers", "exited_with_error"],
+    "load_generators.csv": ["generator", "cpu_pct"],
+    "app_servers.csv": ["node", "cpu_pct"],
+    "database.csv": ["cpu_pct"],
+    "network.csv": ["component"],
+}
+COUNT_COLUMNS = {"count", "passed", "failed", "failed_timeout", "failed_http_5xx", "failed_content_check",
+                 "scheduled_vusers", "running_vusers", "exited_with_error"}
+
+
+def validate_scenario(scenario: dict) -> list[str]:
+    errors = []
+    for section, keys in REQUIRED_SCENARIO.items():
+        if not isinstance(scenario.get(section), dict):
+            errors.append(f"scenario.json: missing section '{section}'")
+            continue
+        errors += [f"scenario.json: missing {section}.{k}" for k in keys if k not in scenario[section]]
+    if not isinstance(scenario.get("sources"), list) or not scenario.get("sources"):
+        errors.append("scenario.json: 'sources' must list the data files")
+    if not isinstance(scenario.get("slas"), list):
+        errors.append("scenario.json: 'slas' must be a list (it can be empty)")
+    pacing = (scenario.get("workload_model") or {}).get("pacing", "")
+    if pacing and not re.search(r"(\d+)s", str(pacing)):
+        errors.append("scenario.json: workload_model.pacing must state seconds, for example 'fixed, one iteration every 20s'")
+    try:
+        parse_time(scenario["run"]["start_utc"])
+    except (KeyError, TypeError, ValueError):
+        errors.append("scenario.json: run.start_utc must be an ISO timestamp with a time zone")
+    return errors
+
+
+def clean_rows(name: str, rows: list[dict], start: datetime, issues: list[dict]) -> list[dict]:
+    """Normalize time, check elapsed minutes, and treat malformed values as missing.
+
+    - Rows with an unreadable timestamp, or a malformed count, are dropped (the data for that
+      row becomes missing, never zero).
+    - Other malformed numeric values are blanked (missing).
+    - A supplied elapsed_min that disagrees with the timestamp is corrected from the timestamp
+      and reported.
+    - Duplicate rows for the same minute and entity are reported.
+    """
     if not rows:
-        return None
+        return rows
     time_col = next((c for c in rows[0] if c.startswith("window_start") or c.startswith("timestamp")), None)
-    for r in rows:
+    keep, seen, mismatched = [], set(), []
+    for i, r in enumerate(rows, start=2):  # line 1 is the header
         if time_col:
-            ts = parse_time(r[time_col])
+            try:
+                ts = parse_time(r[time_col])
+            except (ValueError, TypeError):
+                issues.append({"level": "warning", "file": name, "line": i,
+                               "message": f"unreadable timestamp '{r[time_col]}'; row treated as missing"})
+                continue
             r["_time_utc"] = ts.strftime("%Y-%m-%dT%H:%M:%SZ")
-            if not r.get("elapsed_min"):
-                r["elapsed_min"] = str(int((ts - start).total_seconds() // 60))
-    return time_col
+            computed = int((ts - start).total_seconds() // 60)
+            supplied = r.get("elapsed_min")
+            if supplied not in (None, "") and str(supplied).strip() != str(computed):
+                mismatched.append((i, supplied, computed))
+            r["elapsed_min"] = str(computed)
+        elif r.get("elapsed_min") in (None, "") or num(r.get("elapsed_min")) is None:
+            issues.append({"level": "warning", "file": name, "line": i,
+                           "message": "no timestamp and no usable elapsed_min; row treated as missing"})
+            continue
+        bad_count = [c for c in COUNT_COLUMNS & r.keys() if r[c] not in ("", None) and
+                     (num(r[c]) is None or num(r[c]) < 0 or num(r[c]) != int(num(r[c])))]
+        if bad_count or any(r.get(c) in ("", None) for c in ("count", "passed", "failed") if c in r):
+            issues.append({"level": "warning", "file": name, "line": i,
+                           "message": f"malformed or empty count in {sorted(bad_count) or 'count/passed/failed'}; "
+                                      "row treated as missing"})
+            continue
+        for c, v in list(r.items()):
+            if c.startswith("_") or c in COUNT_COLUMNS or c == "elapsed_min" or c == time_col:
+                continue
+            if c.endswith(("_s", "_ms", "_pct", "_mbps")) and v not in ("", None) and num(v) is None:
+                issues.append({"level": "warning", "file": name, "line": i,
+                               "message": f"non-numeric {c} '{v}'; treated as missing"})
+                r[c] = ""
+        key = (r.get("elapsed_min"), entity_of(r), r.get("transaction"), r.get("trace_id"))
+        if key in seen:
+            issues.append({"level": "warning", "file": name, "line": i,
+                           "message": f"duplicate row for minute {key[0]}, {key[1]}"
+                                      + (f", {key[2]}" if key[2] else "")})
+        seen.add(key)
+        keep.append(r)
+    if mismatched:
+        lines = ", ".join(str(m[0]) for m in mismatched[:5]) + (" ..." if len(mismatched) > 5 else "")
+        issues.append({"level": "warning", "file": name, "line": None,
+                       "message": f"{len(mismatched)} row(s) had elapsed_min that disagrees with the timestamp "
+                                  f"(lines {lines}); corrected from the timestamp"})
+    return keep
 
 
 def entity_of(row: dict) -> str:
@@ -385,16 +473,52 @@ def default_windows(scenario: dict, first_fail: int | None) -> list[tuple[int, i
     return wins
 
 
-def analyze(data_dir: Path, windows=None) -> dict:
-    scenario = json.loads((data_dir / "scenario.json").read_text())
+def load_run(data_dir: Path) -> tuple[dict, dict, list[dict]]:
+    """Load and validate a test run folder. Raises InputError for problems that block analysis."""
+    path = data_dir / "scenario.json"
+    if not path.exists():
+        raise InputError(f"{path} not found")
+    try:
+        scenario = json.loads(path.read_text())
+    except json.JSONDecodeError as e:
+        raise InputError(f"scenario.json is not valid JSON: {e}") from e
+    errors = validate_scenario(scenario)
+    if errors:
+        raise InputError("; ".join(errors))
     start = parse_time(scenario["run"]["start_utc"])
-    tables = {}
-    for s in scenario["sources"]:
-        p = data_dir / s["file"]
-        if p.suffix == ".csv" and p.exists() and s["file"] != "transaction_summary.csv":
-            rows = load_csv(p)
-            add_elapsed(rows, start)
-            tables[s["file"]] = rows
+    issues, tables = [], {}
+    for src in scenario["sources"]:
+        name = src.get("file", "")
+        p = data_dir / name
+        if not p.exists():
+            issues.append({"level": "warning", "file": name, "line": None, "message": "listed in scenario.json but not found"})
+            continue
+        if p.suffix != ".csv":
+            continue
+        rows = load_csv(p)
+        cols = rows[0].keys() if rows else []
+        missing = [c for c in REQUIRED_COLUMNS.get(name, []) if c not in cols]
+        if missing or not rows:
+            level = "error" if name in ("transactions.csv", "vusers.csv") else "warning"
+            issues.append({"level": level, "file": name, "line": None,
+                           "message": f"missing required columns {missing}" if missing else "file has no rows"})
+            if level == "error":
+                continue
+            continue
+        if name == "transaction_summary.csv":
+            continue
+        tables[name] = clean_rows(name, rows, start, issues)
+    blocking = [i for i in issues if i["level"] == "error"]
+    if blocking:
+        raise InputError("; ".join(f"{i['file']}: {i['message']}" for i in blocking))
+    for required in ("transactions.csv", "vusers.csv"):
+        if required not in tables:
+            raise InputError(f"{required} is required and was not found in the sources")
+    return scenario, tables, issues
+
+
+def analyze(data_dir: Path, windows=None) -> dict:
+    scenario, tables, issues = load_run(data_dir)
     wl = workload(scenario, tables)
     crit = criteria(scenario, tables, wl, data_dir)
     wins = windows or default_windows(scenario, crit["first_failing_minute"])
@@ -404,7 +528,8 @@ def analyze(data_dir: Path, windows=None) -> dict:
         "windows": [f"min {a}-{b}" for a, b in wins],
         "window_rule": "Default windows: planned ramp-up, steady state split at the first minute any "
                        "SLA fails, and ramp-down." if not windows else "User-specified.",
-        "inventory": inventory(data_dir, scenario, start, tables),
+        "inventory": inventory(data_dir, scenario, parse_time(scenario["run"]["start_utc"]), tables),
+        "input_checks": issues,
         "load_profile": wl, "sla_results": crit,
         "summaries": summarize(tables, wins),
         "traces": traces(tables, wins),
@@ -458,38 +583,60 @@ def steady_tps(rows: list[dict], lo: int, hi: int) -> float:
 
 
 def capacity(tables: dict, windows) -> dict:
-    """Utilization Law (U = X * D): CPU percent per transaction/s, and the throughput at 80% CPU.
+    """CPU-bound throughput ceiling per tier (Utilization Law, U = X * D). A conditional estimate.
 
-    Assumes the load balancer splits traffic evenly across app nodes, CPU scales linearly
-    with throughput, and CPU is the limiting resource. Results apply to this test
-    environment only.
+    It answers: if CPU were the only limit, how much throughput would this tier reach at 80% CPU?
+    It is not the tier's capacity. Any other saturated resource (connection pool, threads,
+    pool wait) caps throughput first, and each window lists the ones seen.
     """
     tx = tables.get("transactions.csv", [])
     tps = defaultdict(float)
     for r in tx:
         tps[int(r["elapsed_min"])] += int(r["count"]) / 60
-    out = {"assumptions": "Even load balancing across app nodes; CPU scales linearly with throughput; CPU is "
-                          "the limiting resource. Applies to this test environment only.", "windows": {}}
+    app = tables.get("app_servers.csv", [])
+    nodes = sorted({r["node"] for r in app})
+    out = {"label": "CPU-bound throughput ceiling at 80% CPU: conditional estimate, not capacity",
+           "assumptions": "Only valid if CPU is the limiting resource. Also assumes even load balancing across "
+                          "app nodes and CPU that scales linearly with throughput. Applies to this test "
+                          "environment only; do not scale to production without stating the ratio.",
+           "windows": {}}
     for lo, hi in windows:
         res = {}
         mins = [m for m in tps if lo <= m <= hi and tps[m] > 0]
         if not mins:
             continue
         x = statistics.fmean(tps[m] for m in mins)
-        for node in sorted({r["node"] for r in tables.get("app_servers.csv", [])}):
-            cpus = [num(r["cpu_pct"]) for r in tables["app_servers.csv"]
-                    if r["node"] == node and lo <= int(r["elapsed_min"]) <= hi]
+        share = x / len(nodes) if nodes else x
+        for node in nodes:
+            rows = [r for r in app if r["node"] == node and lo <= int(r["elapsed_min"]) <= hi]
+            cpus = [v for v in (num(r.get("cpu_pct")) for r in rows) if v is not None]
+            limits = []
+            pool_full = [r for r in rows if num(r.get("db_pool_active")) is not None and num(r.get("db_pool_max"))
+                         and num(r["db_pool_active"]) >= num(r["db_pool_max"])]
+            if pool_full:
+                limits.append(f"DB connection pool at its maximum in {len(pool_full)} of {len(rows)} minutes")
+            waits = [v for v in (num(r.get("db_pool_wait_ms")) for r in rows) if v is not None]
+            if waits and statistics.fmean(waits) >= 100:
+                limits.append(f"mean DB pool wait {statistics.fmean(waits):.0f} ms")
+            busy = [r for r in rows if num(r.get("active_threads")) is not None and num(r.get("max_threads"))
+                    and num(r["active_threads"]) >= 0.9 * num(r["max_threads"])]
+            if busy:
+                limits.append(f"threads at 90% or more of maximum in {len(busy)} minutes")
             if cpus:
                 u = statistics.fmean(cpus)
-                d = u / (x / 2)
-                res[node] = {"mean_cpu_pct": round(u, 1), "tps_handled": round(x / 2, 1),
-                             "cpu_pct_per_tps": round(d, 3), "tps_at_80pct_cpu": round(80 / d, 1)}
-        cpus = [num(r["cpu_pct"]) for r in tables.get("database.csv", []) if lo <= int(r["elapsed_min"]) <= hi]
+                d = u / share
+                res[node] = {"mean_cpu_pct": round(u, 1), "tps_handled": round(share, 1),
+                             "cpu_pct_per_tps": round(d, 3), "cpu_bound_ceiling_tps": round(80 / d, 1),
+                             "other_limits_seen": limits,
+                             "cpu_is_limiting": not limits}
+        cpus = [v for v in (num(r.get("cpu_pct")) for r in tables.get("database.csv", [])
+                            if lo <= int(r["elapsed_min"]) <= hi) if v is not None]
         if cpus:
             u = statistics.fmean(cpus)
             d = u / x
             res["database"] = {"mean_cpu_pct": round(u, 1), "tps_handled": round(x, 1),
-                               "cpu_pct_per_tps": round(d, 3), "tps_at_80pct_cpu": round(80 / d, 1)}
+                               "cpu_pct_per_tps": round(d, 3), "cpu_bound_ceiling_tps": round(80 / d, 1),
+                               "other_limits_seen": [], "cpu_is_limiting": None}
         out["windows"][f"min {lo}-{hi}"] = res
     return out
 
@@ -505,6 +652,7 @@ def baseline_comparison(data_dir: Path, scenario: dict, tables: dict) -> dict | 
         return {"run_id": b["run_id"], "available": False}
     thr = b.get("regression_threshold_pct", 10)
     lo, hi = scenario["workload_model"]["steady_state_min"]
+    reasons = comparability_problems(scenario, tables, bdir)
     bt = steady_tps(load_csv(bdir / "transactions.csv"), lo, hi)
     ct = steady_tps(tables["transactions.csv"], lo, hi)
     rows = []
@@ -518,14 +666,65 @@ def baseline_comparison(data_dir: Path, scenario: dict, tables: dict) -> dict | 
             bv, cv = float(br[c]), float(r[c])
             row[c] = {"baseline": bv, "current": cv, "change_pct": round(100 * (cv - bv) / bv, 1)}
         row["error_pct"] = {"baseline": float(br["error_pct"]), "current": float(r["error_pct"])}
-        row["regression"] = row["p90_s"]["change_pct"] > thr or row["p95_s"]["change_pct"] > thr
+        slower = row["p90_s"]["change_pct"] > thr or row["p95_s"]["change_pct"] > thr
+        row["slower_than_threshold"] = slower
+        row["regression"] = slower if not reasons else None
         rows.append(row)
     return {"run_id": b["run_id"], "build": b.get("build"), "available": True, "threshold_pct": thr,
+            "comparable": not reasons, "not_comparable_because": reasons,
             "steady_tps": {"baseline": bt, "current": ct,
                            "change_pct": round(100 * (ct - bt) / bt, 1) if bt and ct else None},
             "transactions": rows,
             "note": "Compares this run with the baseline run. Baseline data is never used to fill gaps "
                     "in this run."}
+
+
+def comparability_problems(scenario: dict, tables: dict, bdir: Path) -> list[str]:
+    """Reasons the baseline comparison cannot be used as a regression verdict.
+
+    The tool cannot judge test validity; it checks what it can: same test design and
+    environment, the planned load actually running in both runs, and complete data.
+    """
+    reasons = []
+    try:
+        base = json.loads((bdir / "scenario.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        return ["baseline scenario.json not readable"]
+    if scenario.get("test_type") != base.get("test_type"):
+        reasons.append(f"test type differs ({base.get('test_type')} vs {scenario.get('test_type')})")
+    for k in ("users", "pacing", "iteration", "steady_state_min"):
+        if scenario["workload_model"].get(k) != base.get("workload_model", {}).get(k):
+            reasons.append(f"workload model differs: {k}")
+    if scenario["run"].get("environment") != base.get("run", {}).get("environment"):
+        reasons.append("different test environment")
+    if scenario.get("environment_parity") != base.get("environment_parity"):
+        reasons.append("environment parity description differs")
+    lo, hi = scenario["workload_model"]["steady_state_min"]
+
+    def short(rows):
+        per = defaultdict(lambda: [0, 0])
+        for r in rows:
+            m = int(r["elapsed_min"])
+            if lo <= m <= hi:
+                per[m][0] += int(r["scheduled_vusers"])
+                per[m][1] += int(r["running_vusers"])
+        return [m for m in range(lo, hi + 1) if m not in per or per[m][1] < per[m][0]]
+
+    cur_short = short(tables["vusers.csv"])
+    if cur_short:
+        reasons.append(f"planned load not running in this run for {len(cur_short)} steady-state minutes "
+                       f"(first at minute {cur_short[0]})")
+    try:
+        b_short = short(load_csv(bdir / "vusers.csv"))
+        if b_short:
+            reasons.append(f"planned load not running in the baseline for {len(b_short)} steady-state minutes")
+    except OSError:
+        reasons.append("baseline vusers.csv not readable")
+    present = {int(r["elapsed_min"]) for r in tables["transactions.csv"]}
+    gaps = [m for m in range(lo, hi + 1) if m not in present]
+    if gaps:
+        reasons.append(f"transaction data missing for steady-state minutes {gaps}")
+    return reasons
 
 
 # ------------------------------------------------------------------ graphs (SVG)
@@ -645,6 +844,7 @@ SECTION_MAP = {
     "Baseline comparison": "overview.md", "Errors by type": "overview.md", "SLA results": "overview.md",
     "Load profile by minute": "load-profile.md", "Capacity": "capacity.md",
     "Data inventory": "inventory.md", "Possible prompt-injection text": "inventory.md",
+    "Input checks": "inventory.md",
     "Checkout trace breakdown": "metrics-checkout_traces.md",
 }
 
@@ -721,7 +921,14 @@ def overview_markdown(f: dict, charts=None) -> list[str]:
     if bc and bc.get("available"):
         L += [f"## Baseline comparison: {bc['run_id']} (build {bc['build']})", "",
               f"{bc['note']} A transaction is flagged when p90 or p95 is more than {bc['threshold_pct']}% "
-              "slower than the baseline.", "",
+              "slower than the baseline.", ""]
+        if bc["comparable"]:
+            L += ["**Comparable:** same test design and environment, planned load running in both runs, complete "
+                  "data. The Test Execution Analyst still decides whether this run is valid.", ""]
+        else:
+            L += ["**Not comparable. Shown for context only, not a regression verdict:** "
+                  + "; ".join(bc["not_comparable_because"]) + ".", ""]
+        L += [
               f"Steady-state throughput: {bc['steady_tps']['current']} TPS against {bc['steady_tps']['baseline']} TPS "
               f"in the baseline ({bc['steady_tps']['change_pct']}%).", "",
               "| Transaction | Avg (base → now) | p90 (base → now) | p95 (base → now) | p99 (base → now) | Error % (base → now) | Regression |",
@@ -729,7 +936,8 @@ def overview_markdown(f: dict, charts=None) -> list[str]:
         for r in bc["transactions"]:
             cells = [f"{r[c]['baseline']} → {r[c]['current']} ({r[c]['change_pct']:+}%)" for c in ("avg_s", "p90_s", "p95_s", "p99_s")]
             L.append(f"| {r['transaction']} | " + " | ".join(cells) +
-                     f" | {r['error_pct']['baseline']} → {r['error_pct']['current']} | {'YES' if r['regression'] else 'no'} |")
+                     f" | {r['error_pct']['baseline']} → {r['error_pct']['current']} | "
+                     f"{('YES' if r['regression'] else 'no') if r['regression'] is not None else 'n/a (not comparable)'} |")
         L.append("")
     eb = f.get("errors_by_type")
     if eb:
@@ -741,13 +949,20 @@ def overview_markdown(f: dict, charts=None) -> list[str]:
         L.append("")
     cap = f.get("capacity")
     if cap and cap["windows"]:
-        L += ["## Capacity: Utilization Law", "",
-              "Service demand as CPU % per transaction/s (U = X × D), and the throughput each tier could handle "
-              f"at 80% CPU. Assumptions: {cap['assumptions']}", "",
-              "| Window | Tier | Mean CPU % | TPS handled | CPU % per TPS | TPS at 80% CPU |", "| --- | --- | --- | --- | --- | --- |"]
+        L += ["## Capacity: CPU-bound throughput ceiling (conditional estimate)", "",
+              "Utilization Law (U = X × D): CPU % per transaction/s, and the throughput each tier would reach at 80% "
+              "CPU **if CPU were the only limit**. This is not the tier's capacity. When another resource is "
+              f"saturated, it limits throughput first. {cap['assumptions']}", "",
+              "| Window | Tier | Mean CPU % | TPS handled | CPU % per TPS | CPU-bound ceiling (TPS) | Other limits seen |",
+              "| --- | --- | --- | --- | --- | --- | --- |"]
         for w, tiers in cap["windows"].items():
             for tier, v in tiers.items():
-                L.append(f"| {w} | {tier} | {v['mean_cpu_pct']} | {v['tps_handled']} | {v['cpu_pct_per_tps']} | {v['tps_at_80pct_cpu']} |")
+                other = "; ".join(v["other_limits_seen"]) if v["other_limits_seen"] else (
+                    "none seen" if v["cpu_is_limiting"] is not None else "not checked")
+                if v["other_limits_seen"]:
+                    other = f"**{other}: CPU is not the limiting resource; ceiling does not apply**"
+                L.append(f"| {w} | {tier} | {v['mean_cpu_pct']} | {v['tps_handled']} | {v['cpu_pct_per_tps']} | "
+                         f"{v['cpu_bound_ceiling_tps']} | {other} |")
         L.append("")
     return L
 
@@ -757,7 +972,15 @@ def to_markdown(f: dict, charts=None) -> str:
          f"Generated by `{f['generated_by']}`. Every number here is calculated from the raw data files.", "",
          f"**Test objective:** {f['test_objective']}", "", f"**Windows:** {', '.join(f['windows'])} — {f['window_rule']}", ""]
     L += overview_markdown(f, charts)
-    L += ["## Data inventory", "", "| File | Rows/lines | UTC range | Coverage | Missing minutes | Notes |",
+    checks = f.get("input_checks") or []
+    L += ["## Input checks", ""]
+    if checks:
+        L += ["Problems found while loading the data. Rows with problems are treated as missing, never as zero.", "",
+              "| Level | File | Line | Problem |", "| --- | --- | --- | --- |"]
+        L += [f"| {c['level']} | {c['file']} | {c['line'] or ''} | {c['message']} |" for c in checks]
+    else:
+        L.append("All listed files loaded. No malformed values, timestamp mismatches or duplicate rows found.")
+    L += ["", "## Data inventory", "", "| File | Rows/lines | UTC range | Coverage | Missing minutes | Notes |",
          "| --- | --- | --- | --- | --- | --- |"]
     for i in f["inventory"]:
         notes = "; ".join(x for x in [i.get("normalization", ""), i.get("limitations", "")] if x)
@@ -843,7 +1066,10 @@ def main():
     ap.add_argument("--sections", type=Path, help="also write the summary split into section files in this folder")
     args = ap.parse_args()
     wins = [tuple(int(x) for x in w.split("-")) for w in args.windows] if args.windows else None
-    facts = analyze(args.data_dir, wins)
+    try:
+        facts = analyze(args.data_dir, wins)
+    except InputError as e:
+        raise SystemExit(f"Cannot analyze {args.data_dir}: {e}")
     charts = None
     if args.charts:
         made = write_charts(facts, args.charts)

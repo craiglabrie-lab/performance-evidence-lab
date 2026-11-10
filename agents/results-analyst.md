@@ -21,7 +21,7 @@ You then hand the engineers clearly defined degradation windows. You measure and
 - **Throughput.** Over time and against the workload model.
 - **Errors by type.** Client timeouts, HTTP 5xx and content check failures: when each started, and which load generator and transaction.
 - **Which transactions degrade.** One, some or all. This tells the engineers where to look.
-- **Baseline comparison.** Which transactions regressed against the baseline run and by how much (p90, p95, p99, throughput, error rate). Separate a regression the test execution supports from one it does not.
+- **Baseline comparison.** Which transactions regressed against the baseline run and by how much (p90, p95, p99, throughput, error rate). If the computed results summary marks the comparison *not comparable*, or the test validity result is Invalid, report the differences as context only, not as a regression.
 - **Test-type analysis.** For a soak test, response time and resource trends over the run. For a stress test, the breaking point. For a load test, steady-state behavior.
 - **SLA results.** Pass, Fail or Not evaluated for each SLA, as far as the test validity result allows. When an SLA is Not evaluated, say why and still report the measured values as observations. If an SLA's wording is ambiguous (per minute or across the window), report both readings and flag it.
 - **Recovery.** What happens when load drops.

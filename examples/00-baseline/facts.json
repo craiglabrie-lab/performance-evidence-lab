@@ -149,6 +149,7 @@
       ]
     }
   ],
+  "input_checks": [],
   "load_profile": {
     "pacing_s": 20.0,
     "minutes": [
@@ -1296,7 +1297,7 @@
     },
     "steady_error_rate_pct": 0.2,
     "first_failing_minute": null,
-    "note": "Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged."
+    "note": "Calculated from the data only; the Test Execution Analyst decides whether the run is valid enough to report these as SLA results. Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged."
   },
   "summaries": {
     "transactions.csv": {
@@ -3549,26 +3550,33 @@
     }
   },
   "capacity": {
-    "assumptions": "Even load balancing across app nodes; CPU scales linearly with throughput; CPU is the limiting resource. Applies to this test environment only.",
+    "label": "CPU-bound throughput ceiling at 80% CPU: conditional estimate, not capacity",
+    "assumptions": "Only valid if CPU is the limiting resource. Also assumes even load balancing across app nodes and CPU that scales linearly with throughput. Applies to this test environment only; do not scale to production without stating the ratio.",
     "windows": {
       "min 0-9": {
         "app1": {
           "mean_cpu_pct": 33.0,
           "tps_handled": 27.5,
           "cpu_pct_per_tps": 1.201,
-          "tps_at_80pct_cpu": 66.6
+          "cpu_bound_ceiling_tps": 66.6,
+          "other_limits_seen": [],
+          "cpu_is_limiting": true
         },
         "app2": {
           "mean_cpu_pct": 32.4,
           "tps_handled": 27.5,
           "cpu_pct_per_tps": 1.18,
-          "tps_at_80pct_cpu": 67.8
+          "cpu_bound_ceiling_tps": 67.8,
+          "other_limits_seen": [],
+          "cpu_is_limiting": true
         },
         "database": {
           "mean_cpu_pct": 17.9,
           "tps_handled": 54.9,
           "cpu_pct_per_tps": 0.326,
-          "tps_at_80pct_cpu": 245.6
+          "cpu_bound_ceiling_tps": 245.6,
+          "other_limits_seen": [],
+          "cpu_is_limiting": null
         }
       },
       "min 10-39": {
@@ -3576,19 +3584,25 @@
           "mean_cpu_pct": 52.9,
           "tps_handled": 50.0,
           "cpu_pct_per_tps": 1.058,
-          "tps_at_80pct_cpu": 75.6
+          "cpu_bound_ceiling_tps": 75.6,
+          "other_limits_seen": [],
+          "cpu_is_limiting": true
         },
         "app2": {
           "mean_cpu_pct": 53.3,
           "tps_handled": 50.0,
           "cpu_pct_per_tps": 1.065,
-          "tps_at_80pct_cpu": 75.1
+          "cpu_bound_ceiling_tps": 75.1,
+          "other_limits_seen": [],
+          "cpu_is_limiting": true
         },
         "database": {
           "mean_cpu_pct": 30.5,
           "tps_handled": 100.1,
           "cpu_pct_per_tps": 0.305,
-          "tps_at_80pct_cpu": 262.3
+          "cpu_bound_ceiling_tps": 262.3,
+          "other_limits_seen": [],
+          "cpu_is_limiting": null
         }
       },
       "min 40-44": {
@@ -3596,19 +3610,25 @@
           "mean_cpu_pct": 25.5,
           "tps_handled": 25.0,
           "cpu_pct_per_tps": 1.022,
-          "tps_at_80pct_cpu": 78.3
+          "cpu_bound_ceiling_tps": 78.3,
+          "other_limits_seen": [],
+          "cpu_is_limiting": true
         },
         "app2": {
           "mean_cpu_pct": 25.4,
           "tps_handled": 25.0,
           "cpu_pct_per_tps": 1.018,
-          "tps_at_80pct_cpu": 78.6
+          "cpu_bound_ceiling_tps": 78.6,
+          "other_limits_seen": [],
+          "cpu_is_limiting": true
         },
         "database": {
           "mean_cpu_pct": 14.7,
           "tps_handled": 49.9,
           "cpu_pct_per_tps": 0.294,
-          "tps_at_80pct_cpu": 272.1
+          "cpu_bound_ceiling_tps": 272.1,
+          "other_limits_seen": [],
+          "cpu_is_limiting": null
         }
       }
     }
