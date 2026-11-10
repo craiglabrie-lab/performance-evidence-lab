@@ -39,6 +39,14 @@ The repository was reviewed from three points of view: a performance engineer, a
 | AI-6 | The evaluation would not convince an AI engineer. | **Concept, then Planned**: evaluation harness with repeated runs, automated scoring from structured output, and a judge on a different model. The answer key and its pre-run hash are already in place. | [Evaluation harness](../concepts/evaluation-harness.md) |
 | AI-7 | No human approval point or observability. | **Implemented in part**: the go/no-go recommendation is now explicitly for a human release approver, and the test summary report has an approval block. Step-level tracing is part of the orchestrator concept (AI-1). | `agents/performance-test-lead.md`, `agents/test-report-author.md` |
 
+## External review: SLA evaluation
+
+| # | Feedback | Status | Where |
+| --- | --- | --- | --- |
+| EXT-1 | SLA thresholds (2.0 s, 90 TPS, 1%) were hard-coded in `tools/analyze.py`, not read from `scenario.json`. | **Implemented**: each SLA in `scenario.json` now has a machine-readable type, operator, value and evaluation mode (per minute per load generator, per minute, or whole window). The evaluator and the graph threshold lines read them from there. | `tools/analyze.py`, `templates/scenario.json` |
+| EXT-2 | A missing p95 value, a missing load generator, or a minute with no transactions could evaluate as Pass. | **Implemented**: any missing measurement is *Not evaluated*, never Pass; a known failure is still Fail. An SLA definition the tool cannot evaluate is reported as Not evaluated with the reason. Response time SLAs judged over a window use the run-level transaction summary and are never averaged from per-minute percentiles. | `tools/analyze.py` |
+| EXT-3 | Add tests that remove data and change thresholds. | **Implemented**: six tests cover changed thresholds, a blank p95, missing load generator rows, a minute with no transactions, unsupported SLA definitions, and window evaluation with and without a run-level summary. | `tests/test_analyze.py` |
+
 ## Role names
 
 The roles were also renamed to match performance testing practice:

@@ -18,6 +18,8 @@ What it does:
   * trace breakdown (when traces exist)
 
 What it never does:
+  * hard-code SLA thresholds. They come from the slas list in scenario.json
+  * mark an SLA Pass when a measurement is missing. Missing data is Not evaluated
   * average percentiles. Per-minute p95 values are reported as median/max of
     the minute values and labeled as such; a run-level p95 is not computed
   * fill gaps. Missing minutes are listed, never zero-filled
@@ -179,29 +181,135 @@ def workload(scenario: dict, tables: dict) -> dict:
                                 "value means iterations are running late (responses + think time exceed pacing)."}
 
 
-def criteria(scenario: dict, tables: dict, wl: dict) -> dict:
+PASS, FAIL, NOT_EVALUATED = "Pass", "Fail", "Not evaluated"
+OPERATORS = {"<=": lambda a, b: a <= b, "<": lambda a, b: a < b, ">=": lambda a, b: a >= b, ">": lambda a, b: a > b}
+SLA_TYPES = {"response_time", "throughput", "error_rate"}
+
+
+def combine(results: list[str]) -> str:
+    """A known failure is a Fail. Otherwise any missing measurement makes the result Not evaluated."""
+    if FAIL in results:
+        return FAIL
+    if not results or NOT_EVALUATED in results:
+        return NOT_EVALUATED
+    return PASS
+
+
+def sla_problem(sla: dict, tables: dict) -> str | None:
+    """Return why an SLA cannot be evaluated by the tool, or None if it can."""
+    missing = [k for k in ("id", "type", "operator", "value", "evaluation") if k not in sla]
+    if missing:
+        return f"SLA definition has no machine-readable {', '.join(missing)}"
+    if sla["type"] not in SLA_TYPES:
+        return f"SLA type '{sla['type']}' is not supported by the tool"
+    if sla["operator"] not in OPERATORS or num(sla["value"]) is None:
+        return "SLA operator or threshold value is not usable"
+    if "transactions.csv" not in tables or not tables["transactions.csv"]:
+        return "no transaction data"
+    if sla["type"] == "response_time":
+        if "transaction" not in sla or "statistic" not in sla:
+            return "response time SLA needs 'transaction' and 'statistic'"
+        if sla["statistic"] not in tables["transactions.csv"][0]:
+            return f"statistic '{sla['statistic']}' is not in transactions.csv"
+    return None
+
+
+def criteria(scenario: dict, tables: dict, wl: dict, data_dir: Path | None = None) -> dict:
+    """Evaluate every SLA in scenario.json. Thresholds come from the SLA definitions, never from code.
+
+    Rules: a missing measurement is Not evaluated, never Pass; percentiles are never averaged;
+    an SLA the tool cannot evaluate is reported as Not evaluated with the reason.
+    """
     lo, hi = scenario["workload_model"]["steady_state_min"]
-    by_minute = {}
-    for m in range(lo, hi + 1):
-        rows = [r for r in tables["transactions.csv"] if int(r["elapsed_min"]) == m]
-        checkout = {r["generator"]: num(r["p95_s"]) for r in rows if r["transaction"] == "checkout"}
-        w = next(x for x in wl["minutes"] if x["elapsed_min"] == m)
-        by_minute[m] = {
-            "SLA-1 checkout p95 by generator (s)": checkout,
-            "SLA-1": "FAIL" if any(v is not None and v > 2.0 for v in checkout.values()) else "PASS",
-            "SLA-2 tps": w["tps"], "SLA-2": "PASS" if w["tps"] >= 90 else "FAIL",
-            "SLA-3 error %": w["error_rate_pct"],
-            "SLA-3": "PASS" if (w["error_rate_pct"] or 0) <= 1.0 else "FAIL",
-        }
-    fails = {k: [m for m, v in by_minute.items() if v[k] == "FAIL"] for k in ("SLA-1", "SLA-2", "SLA-3")}
-    steady_tx = [r for r in tables["transactions.csv"] if lo <= int(r["elapsed_min"]) <= hi]
+    generators = sorted(g for g in scenario["workload_model"].get("users", {}) if g != "total")
+    rows = tables.get("transactions.csv", [])
+    by_min = defaultdict(list)
+    for r in rows:
+        by_min[int(r["elapsed_min"])].append(r)
+    out = {}
+    for sla in scenario.get("slas", []):
+        res = {"definition": sla, "per_minute": {}, "window_value": None, "reason": ""}
+        problem = sla_problem(sla, tables)
+        if problem:
+            res.update(result=NOT_EVALUATED, reason=problem)
+            out[sla.get("id", "?")] = res
+            continue
+        ok = lambda v: OPERATORS[sla["operator"]](v, float(sla["value"]))
+        kind, mode = sla["type"], sla["evaluation"]
+        minute_results = []
+        for m in range(lo, hi + 1):
+            mrows = by_min.get(m, [])
+            gens_present = {r["generator"] for r in mrows}
+            missing_gens = [g for g in generators if g not in gens_present]
+            if kind == "response_time":
+                vals, results = {}, []
+                for g in generators or sorted(gens_present):
+                    row = next((r for r in mrows if r["generator"] == g and r["transaction"] == sla["transaction"]), None)
+                    v = num(row[sla["statistic"]]) if row else None
+                    vals[g] = v
+                    results.append(NOT_EVALUATED if v is None else (PASS if ok(v) else FAIL))
+                entry = {"values": vals, "result": combine(results)}
+            else:
+                count = sum(int(r["count"]) for r in mrows)
+                failed = sum(int(r["failed"]) for r in mrows)
+                if kind == "throughput":
+                    v = round(count / 60, 1) if mrows else None
+                else:
+                    v = round(100 * failed / count, 2) if count else None
+                if v is None or missing_gens:
+                    result = FAIL if (v is not None and not ok(v)) else NOT_EVALUATED
+                else:
+                    result = PASS if ok(v) else FAIL
+                entry = {"value": v, "result": result}
+            if missing_gens:
+                entry["missing"] = missing_gens
+            res["per_minute"][m] = entry
+            minute_results.append(entry["result"])
+        if mode in ("per_minute", "per_minute_per_generator"):
+            res["result"] = combine(minute_results)
+        elif mode == "window":
+            for e in res["per_minute"].values():
+                e.pop("result")  # per-minute values are shown for context; the SLA is judged on the window
+            minute_results = []
+            incomplete = [m for m, e in res["per_minute"].items() if e.get("missing") or
+                          ("value" in e and e["value"] is None)]
+            if kind == "response_time":
+                summary = transaction_summary(data_dir) if data_dir else None
+                row = next((r for r in summary or [] if r["generator"] == "ALL"
+                            and r["transaction"] == sla["transaction"]), None)
+                v = num(row.get(sla["statistic"])) if row else None
+                res["reason"] = "from the run-level transaction summary" if v is not None else \
+                    "needs a run-level transaction summary; per-minute percentiles cannot be averaged"
+            else:
+                steady = [r for m in range(lo, hi + 1) for r in by_min.get(m, [])]
+                count = sum(int(r["count"]) for r in steady)
+                failed = sum(int(r["failed"]) for r in steady)
+                v = (round(count / 60 / (hi - lo + 1), 1) if kind == "throughput" else
+                     round(100 * failed / count, 2) if count else None)
+            res["window_value"] = v
+            if v is None:
+                res["result"] = NOT_EVALUATED
+            elif incomplete and kind != "response_time":
+                res["result"] = FAIL if not ok(v) else NOT_EVALUATED
+                res["reason"] = f"data missing for minutes {incomplete}"
+            else:
+                res["result"] = PASS if ok(v) else FAIL
+        else:
+            res.update(result=NOT_EVALUATED, reason=f"evaluation mode '{mode}' is not supported")
+        res["counts"] = {k: minute_results.count(k) for k in (PASS, FAIL, NOT_EVALUATED)} if minute_results else {}
+        out[sla["id"]] = res
+    fails = {k: [m for m, e in v["per_minute"].items() if e.get("result") == FAIL] for k, v in out.items()}
+    steady_tx = [r for r in rows if lo <= int(r["elapsed_min"]) <= hi]
     total = sum(int(r["count"]) for r in steady_tx)
     failed = sum(int(r["failed"]) for r in steady_tx)
-    first_fail = min((m for ms in fails.values() for m in ms), default=None)
-    return {"steady_state_min": [lo, hi], "per_minute": by_minute, "failing_minutes": fails,
+    return {"steady_state_min": [lo, hi], "slas": out, "failing_minutes": fails,
             "steady_error_rate_pct": round(100 * failed / total, 2) if total else None,
-            "first_failing_minute": first_fail,
-            "note": "SLA-1 is judged per generator per minute because p95 values cannot be averaged."}
+            "first_failing_minute": min((m for ms in fails.values() for m in ms), default=None),
+            "note": "Calculated from the data only; the Test Execution Analyst decides whether the run is valid "
+                    "enough to report these as SLA results. Thresholds come from scenario.json. A missing "
+                    "measurement is Not evaluated, never Pass. "
+                    "Response time SLAs are judged per load generator per minute because percentiles cannot "
+                    "be averaged."}
 
 
 def summarize(tables: dict, windows: list[tuple[int, int]]) -> dict:
@@ -288,7 +396,7 @@ def analyze(data_dir: Path, windows=None) -> dict:
             add_elapsed(rows, start)
             tables[s["file"]] = rows
     wl = workload(scenario, tables)
-    crit = criteria(scenario, tables, wl)
+    crit = criteria(scenario, tables, wl, data_dir)
     wins = windows or default_windows(scenario, crit["first_failing_minute"])
     return {
         "run": scenario["run"], "test_objective": scenario["test_objective"],
@@ -500,15 +608,21 @@ def write_charts(f: dict, out_dir: Path) -> list[tuple[str, str]]:
                     d[int(r["elapsed_min"])] = v
         return sorted(d.items())
 
+    slas = sc.get("slas", [])
+    rt = next((x for x in slas if x.get("type") == "response_time" and "transaction" in x), None)
+    tp = next((x for x in slas if x.get("type") == "throughput" and num(x.get("value")) is not None), None)
+    tx_name = rt["transaction"] if rt else "checkout"
+    stat = rt.get("statistic", "p95_s") if rt else "p95_s"
+    stat_label = stat.replace("_s", "")
     charts = [
         ("running-vusers.svg", "Running Vusers by load generator",
          {g: by_gen(t["vusers.csv"], "running_vusers", g) for g in gens}, "Vusers", None),
         ("throughput.svg", "Throughput (all transactions)",
          {"Total TPS": [(m["elapsed_min"], m["tps"]) for m in f["load_profile"]["minutes"]]}, "Transactions/s",
-         (90, "SLA-2: 90 TPS")),
-        ("checkout-p95.svg", "Checkout p95 response time by load generator",
-         {g: by_gen(t["transactions.csv"], "p95_s", g, "checkout") for g in gens}, "Seconds",
-         (2.0, "SLA-1: 2.0 s")),
+         (float(tp["value"]), f"{tp['id']}: {tp['threshold']}") if tp else None),
+        (f"{tx_name}-{stat_label}.svg", f"{tx_name.capitalize()} {stat_label} response time by load generator",
+         {g: by_gen(t["transactions.csv"], stat, g, tx_name) for g in gens}, "Seconds",
+         (float(rt["value"]), f"{rt['id']}: {rt['threshold']}") if rt else None),
     ]
     if t["transactions.csv"] and "failed_timeout" in t["transactions.csv"][0]:
         err = {}
@@ -665,12 +779,30 @@ def to_markdown(f: dict, charts=None) -> str:
         L.append(f"- {g}: " + ", ".join(f"{m}:{v}" for m, v in d.items()))
     a = f["sla_results"]
     L += ["", "## SLA results (steady state)", "",
-          f"First failing minute: {a['first_failing_minute']}. Steady-state error rate: {a['steady_error_rate_pct']}%.",
-          f"{a['note']}", "", "| Min | Checkout p95 by generator | SLA-1 | TPS | SLA-2 | Error % | SLA-3 |",
-          "| --- | --- | --- | --- | --- | --- | --- |"]
-    for m, v in a["per_minute"].items():
-        p = ", ".join(f"{g} {x}" for g, x in v["SLA-1 checkout p95 by generator (s)"].items())
-        L.append(f"| {m} | {p} | {v['SLA-1']} | {v['SLA-2 tps']} | {v['SLA-2']} | {v['SLA-3 error %']} | {v['SLA-3']} |")
+          f"{a['note']} First minute any SLA failed: {a['first_failing_minute']}.", "",
+          "| SLA | Metric | Threshold | Evaluation | Result | Minutes Pass / Fail / Not evaluated | Window value | Notes |",
+          "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for sid, v in a["slas"].items():
+        d = v["definition"]
+        c = v.get("counts", {})
+        cnt = f"{c.get('Pass', 0)} / {c.get('Fail', 0)} / {c.get('Not evaluated', 0)}" if c else ""
+        L.append(f"| {sid} | {d.get('metric', '')} | {d.get('threshold', '')} | {d.get('evaluation', '')} | "
+                 f"**{v['result']}** | {cnt} | {v['window_value'] if v['window_value'] is not None else ''} | {v['reason']} |")
+    per_min = [sid for sid, v in a["slas"].items() if v["per_minute"]]
+    if per_min:
+        L += ["", "Per minute:", "", "| Min | " + " | ".join(per_min) + " |", "| --- |" + " --- |" * len(per_min)]
+        lo, hi = a["steady_state_min"]
+        for m in range(lo, hi + 1):
+            cells = []
+            for sid in per_min:
+                e = a["slas"][sid]["per_minute"].get(m, {})
+                if "values" in e:
+                    val = ", ".join(f"{g} {x if x is not None else 'no data'}" for g, x in e["values"].items())
+                else:
+                    val = e.get("value") if e.get("value") is not None else "no data"
+                miss = f" (missing {', '.join(e['missing'])})" if e.get("missing") else ""
+                cells.append(f"{val}{miss}: {e['result']}" if "result" in e else f"{val}{miss} (judged on window)")
+            L.append(f"| {m} | " + " | ".join(cells) + " |")
     L += ["", "## Metrics by time window", "",
           "Percentile columns show the median and max of per-minute values — not a recomputed percentile."]
     for file, wins in f["summaries"].items():

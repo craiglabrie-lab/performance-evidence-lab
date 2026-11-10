@@ -78,38 +78,45 @@ Steady-state throughput: 92.9 TPS against 100.1 TPS in the baseline (-7.2%).
 
 ## SLA results (steady state)
 
-First failing minute: 19. Steady-state error rate: 0.47%.
-SLA-1 is judged per generator per minute because p95 values cannot be averaged.
+Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged. First minute any SLA failed: 19.
 
-| Min | Checkout p95 by generator | SLA-1 | TPS | SLA-2 | Error % | SLA-3 |
-| --- | --- | --- | --- | --- | --- | --- |
-| 10 | LG1 1.45, LG2 1.36 | PASS | 99.4 | PASS | 0.22 | PASS |
-| 11 | LG1 1.41, LG2 1.4 | PASS | 99.3 | PASS | 0.18 | PASS |
-| 12 | LG1 1.38, LG2 1.37 | PASS | 100.3 | PASS | 0.18 | PASS |
-| 13 | LG1 1.34, LG2 1.39 | PASS | 100.0 | PASS | 0.2 | PASS |
-| 14 | LG1 1.54, LG2 1.43 | PASS | 99.9 | PASS | 0.18 | PASS |
-| 15 | LG1 1.39, LG2 1.42 | PASS | 99.5 | PASS | 0.18 | PASS |
-| 16 | LG1 1.36, LG2 1.42 | PASS | 99.2 | PASS | 0.18 | PASS |
-| 17 | LG1 1.41, LG2 1.52 | PASS | 100.8 | PASS | 0.2 | PASS |
-| 18 | LG1 1.5, LG2 1.46 | PASS | 99.3 | PASS | 0.23 | PASS |
-| 19 | LG1 5.07, LG2 5.08 | FAIL | 99.7 | PASS | 0.6 | PASS |
-| 20 | LG1 4.79, LG2 5.06 | FAIL | 99.8 | PASS | 0.57 | PASS |
-| 21 | LG1 5.24, LG2 5.33 | FAIL | 99.8 | PASS | 0.65 | PASS |
-| 22 | LG1 6.05, LG2 5.68 | FAIL | 100.7 | PASS | 0.6 | PASS |
-| 23 | LG1 5.78, LG2 6.08 | FAIL | 97.7 | PASS | 0.61 | PASS |
-| 24 | LG1 5.88, LG2 5.64 | FAIL | 95.3 | PASS | 0.61 | PASS |
-| 25 | LG1 6.29, LG2 6.52 | FAIL | 92.5 | PASS | 0.67 | PASS |
-| 26 | LG1 6.37, LG2 7.26 | FAIL | 89.6 | FAIL | 0.58 | PASS |
-| 27 | LG1 7.19, LG2 7.34 | FAIL | 86.6 | FAIL | 0.6 | PASS |
-| 28 | LG1 6.35, LG2 6.85 | FAIL | 85.8 | FAIL | 0.6 | PASS |
-| 29 | LG1 7.39, LG2 6.79 | FAIL | 86.0 | FAIL | 0.64 | PASS |
-| 30 | LG1 7.29, LG2 6.76 | FAIL | 85.5 | FAIL | 0.64 | PASS |
-| 31 | LG1 6.59, LG2 6.91 | FAIL | 87.8 | FAIL | 0.57 | PASS |
-| 32 | LG1 7.23, LG2 7.01 | FAIL | 85.9 | FAIL | 0.6 | PASS |
-| 33 | LG1 7.28, LG2 7.64 | FAIL | 85.9 | FAIL | 0.6 | PASS |
-| 34 | LG1 6.89, LG2 7.67 | FAIL | 85.4 | FAIL | 0.6 | PASS |
-| 35 | LG1 6.99, LG2 7.55 | FAIL | 85.3 | FAIL | 0.61 | PASS |
-| 36 | LG1 7.2, LG2 7.41 | FAIL | 85.7 | FAIL | 0.62 | PASS |
-| 37 | LG1 6.84, LG2 7.28 | FAIL | 86.0 | FAIL | 0.6 | PASS |
-| 38 | LG1 7.18, LG2 7.41 | FAIL | 85.5 | FAIL | 0.62 | PASS |
-| 39 | LG1 7.43, LG2 7.45 | FAIL | 84.2 | FAIL | 0.53 | PASS |
+| SLA | Metric | Threshold | Evaluation | Result | Minutes Pass / Fail / Not evaluated | Window value | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| SLA-1 | checkout p95 response time | <= 2.0 s | per_minute_per_generator | **Fail** | 9 / 21 / 0 |  |  |
+| SLA-2 | total throughput | >= 90 transactions/s | per_minute | **Fail** | 16 / 14 / 0 |  |  |
+| SLA-3 | transaction error rate | <= 1% | window | **Pass** |  | 0.47 |  |
+
+Per minute:
+
+| Min | SLA-1 | SLA-2 | SLA-3 |
+| --- | --- | --- | --- |
+| 10 | LG1 1.45, LG2 1.36: Pass | 99.4: Pass | 0.22 (judged on window) |
+| 11 | LG1 1.41, LG2 1.4: Pass | 99.3: Pass | 0.18 (judged on window) |
+| 12 | LG1 1.38, LG2 1.37: Pass | 100.3: Pass | 0.18 (judged on window) |
+| 13 | LG1 1.34, LG2 1.39: Pass | 100.0: Pass | 0.2 (judged on window) |
+| 14 | LG1 1.54, LG2 1.43: Pass | 99.9: Pass | 0.18 (judged on window) |
+| 15 | LG1 1.39, LG2 1.42: Pass | 99.5: Pass | 0.18 (judged on window) |
+| 16 | LG1 1.36, LG2 1.42: Pass | 99.2: Pass | 0.18 (judged on window) |
+| 17 | LG1 1.41, LG2 1.52: Pass | 100.8: Pass | 0.2 (judged on window) |
+| 18 | LG1 1.5, LG2 1.46: Pass | 99.3: Pass | 0.23 (judged on window) |
+| 19 | LG1 5.07, LG2 5.08: Fail | 99.7: Pass | 0.6 (judged on window) |
+| 20 | LG1 4.79, LG2 5.06: Fail | 99.8: Pass | 0.57 (judged on window) |
+| 21 | LG1 5.24, LG2 5.33: Fail | 99.8: Pass | 0.65 (judged on window) |
+| 22 | LG1 6.05, LG2 5.68: Fail | 100.7: Pass | 0.6 (judged on window) |
+| 23 | LG1 5.78, LG2 6.08: Fail | 97.7: Pass | 0.61 (judged on window) |
+| 24 | LG1 5.88, LG2 5.64: Fail | 95.3: Pass | 0.61 (judged on window) |
+| 25 | LG1 6.29, LG2 6.52: Fail | 92.5: Pass | 0.67 (judged on window) |
+| 26 | LG1 6.37, LG2 7.26: Fail | 89.6: Fail | 0.58 (judged on window) |
+| 27 | LG1 7.19, LG2 7.34: Fail | 86.6: Fail | 0.6 (judged on window) |
+| 28 | LG1 6.35, LG2 6.85: Fail | 85.8: Fail | 0.6 (judged on window) |
+| 29 | LG1 7.39, LG2 6.79: Fail | 86.0: Fail | 0.64 (judged on window) |
+| 30 | LG1 7.29, LG2 6.76: Fail | 85.5: Fail | 0.64 (judged on window) |
+| 31 | LG1 6.59, LG2 6.91: Fail | 87.8: Fail | 0.57 (judged on window) |
+| 32 | LG1 7.23, LG2 7.01: Fail | 85.9: Fail | 0.6 (judged on window) |
+| 33 | LG1 7.28, LG2 7.64: Fail | 85.9: Fail | 0.6 (judged on window) |
+| 34 | LG1 6.89, LG2 7.67: Fail | 85.4: Fail | 0.6 (judged on window) |
+| 35 | LG1 6.99, LG2 7.55: Fail | 85.3: Fail | 0.61 (judged on window) |
+| 36 | LG1 7.2, LG2 7.41: Fail | 85.7: Fail | 0.62 (judged on window) |
+| 37 | LG1 6.84, LG2 7.28: Fail | 86.0: Fail | 0.6 (judged on window) |
+| 38 | LG1 7.18, LG2 7.41: Fail | 85.5: Fail | 0.62 (judged on window) |
+| 39 | LG1 7.43, LG2 7.45: Fail | 84.2: Fail | 0.53 (judged on window) |

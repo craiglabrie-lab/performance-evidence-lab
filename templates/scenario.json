@@ -48,10 +48,17 @@
   },
   "slas": [
     {
-      "id": "",
+      "id": "SLA-1",
       "metric": "",
       "threshold": "",
-      "scope": ""
+      "scope": "",
+      "type": "response_time | throughput | error_rate",
+      "transaction": "(response_time only)",
+      "statistic": "p90_s | p95_s | p99_s (response_time only)",
+      "operator": "<= | < | >= | >",
+      "value": 0,
+      "unit": "",
+      "evaluation": "per_minute_per_generator | per_minute | window"
     }
   ],
   "environment": {

@@ -131,3 +131,92 @@ def test_sections_split_the_summary_without_losing_content(tmp_path):
     body_lines = {ln for ln in md.splitlines() if ln.startswith("| ")}
     split_lines = {ln for f in written for ln in (tmp_path / "facts" / f).read_text().splitlines() if ln.startswith("| ")}
     assert body_lines <= split_lines
+
+
+# ---------------------------------------------------------------- SLA evaluation
+import csv  # noqa: E402
+import json  # noqa: E402
+import shutil  # noqa: E402
+
+
+def copy_run(tmp_path, src=S2):
+    dst = tmp_path / "data"
+    shutil.copytree(src, dst)
+    return dst
+
+
+def rewrite_csv(path, keep=lambda r: True, change=lambda r: r):
+    rows = list(csv.DictReader(path.open()))
+    with path.open("w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=rows[0].keys())
+        w.writeheader()
+        w.writerows(change(dict(r)) for r in rows if keep(r))
+
+
+def edit_slas(data, fn):
+    sc = json.loads((data / "scenario.json").read_text())
+    fn(sc["slas"])
+    (data / "scenario.json").write_text(json.dumps(sc))
+
+
+def slas(data):
+    return analyze.analyze(data)["sla_results"]["slas"]
+
+
+def test_sla_thresholds_come_from_scenario(tmp_path):
+    data = copy_run(tmp_path)
+    assert slas(data)["SLA-1"]["result"] == "Fail"
+    edit_slas(data, lambda s: s[0].update(value=10.0))
+    assert slas(data)["SLA-1"]["result"] == "Pass"
+    edit_slas(data, lambda s: s[0].update(value=0.5))
+    assert slas(data)["SLA-1"]["counts"]["Fail"] == 30
+
+
+def test_missing_p95_is_not_evaluated_not_pass(tmp_path):
+    data = copy_run(tmp_path, S0)  # healthy baseline: every minute passes
+    assert slas(data)["SLA-1"]["result"] == "Pass"
+    rewrite_csv(data / "transactions.csv",
+                change=lambda r: {**r, "p95_s": ""} if r["elapsed_min"] == "20" and r["generator"] == "LG2"
+                and r["transaction"] == "checkout" else r)
+    res = slas(data)["SLA-1"]
+    assert res["per_minute"][20]["result"] == "Not evaluated"
+    assert res["result"] == "Not evaluated"
+
+
+def test_missing_load_generator_rows_are_not_evaluated(tmp_path):
+    data = copy_run(tmp_path, S0)
+    rewrite_csv(data / "transactions.csv", keep=lambda r: not (r["elapsed_min"] == "25" and r["generator"] == "LG1"))
+    res = slas(data)
+    assert res["SLA-1"]["per_minute"][25]["result"] == "Not evaluated"
+    assert res["SLA-2"]["per_minute"][25]["result"] in ("Not evaluated", "Fail")
+    assert res["SLA-1"]["result"] == "Not evaluated"
+
+
+def test_no_transactions_is_not_evaluated(tmp_path):
+    data = copy_run(tmp_path, S0)
+    rewrite_csv(data / "transactions.csv", keep=lambda r: r["elapsed_min"] != "30")
+    res = slas(data)
+    assert res["SLA-2"]["per_minute"][30] == {"value": None, "result": "Not evaluated", "missing": ["LG1", "LG2"]}
+    assert res["SLA-2"]["result"] == "Not evaluated"
+    assert res["SLA-3"]["result"] == "Not evaluated"
+    assert "30" in res["SLA-3"]["reason"]
+
+
+def test_unsupported_or_incomplete_sla_is_not_evaluated(tmp_path):
+    data = copy_run(tmp_path)
+    edit_slas(data, lambda s: s.extend([{"id": "SLA-9", "metric": "CPU", "threshold": "<= 70%"},
+                                        {"id": "SLA-8", "type": "apdex", "operator": ">=", "value": 0.9,
+                                         "evaluation": "window"}]))
+    res = slas(data)
+    assert res["SLA-9"]["result"] == "Not evaluated" and "machine-readable" in res["SLA-9"]["reason"]
+    assert res["SLA-8"]["result"] == "Not evaluated" and "not supported" in res["SLA-8"]["reason"]
+
+
+def test_window_response_time_uses_run_summary_never_averages(tmp_path):
+    data = copy_run(tmp_path)
+    edit_slas(data, lambda s: s[0].update(evaluation="window"))
+    res = slas(data)["SLA-1"]
+    assert res["window_value"] == 6.28 and res["result"] == "Fail"
+    (data / "transaction_summary.csv").unlink()
+    res = slas(data)["SLA-1"]
+    assert res["result"] == "Not evaluated" and "cannot be averaged" in res["reason"]

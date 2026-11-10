@@ -46,19 +46,36 @@
       "id": "SLA-1",
       "metric": "checkout p95 response time",
       "threshold": "<= 2.0 s",
-      "scope": "each steady-state minute, each generator"
+      "scope": "each steady-state minute, each load generator",
+      "type": "response_time",
+      "transaction": "checkout",
+      "statistic": "p95_s",
+      "operator": "<=",
+      "value": 2.0,
+      "unit": "s",
+      "evaluation": "per_minute_per_generator"
     },
     {
       "id": "SLA-2",
       "metric": "total throughput",
       "threshold": ">= 90 transactions/s",
-      "scope": "steady state"
+      "scope": "each steady-state minute, all load generators combined",
+      "type": "throughput",
+      "operator": ">=",
+      "value": 90,
+      "unit": "TPS",
+      "evaluation": "per_minute"
     },
     {
       "id": "SLA-3",
       "metric": "transaction error rate",
       "threshold": "<= 1%",
-      "scope": "steady state"
+      "scope": "whole steady state, all transactions",
+      "type": "error_rate",
+      "operator": "<=",
+      "value": 1.0,
+      "unit": "%",
+      "evaluation": "window"
     }
   ],
   "environment": {

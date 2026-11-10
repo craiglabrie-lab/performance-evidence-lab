@@ -791,336 +791,493 @@
       10,
       39
     ],
-    "per_minute": {
-      "10": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.37,
-          "LG2": 1.33
+    "slas": {
+      "SLA-1": {
+        "definition": {
+          "id": "SLA-1",
+          "metric": "checkout p95 response time",
+          "threshold": "<= 2.0 s",
+          "scope": "each steady-state minute, each load generator",
+          "type": "response_time",
+          "transaction": "checkout",
+          "statistic": "p95_s",
+          "operator": "<=",
+          "value": 2.0,
+          "unit": "s",
+          "evaluation": "per_minute_per_generator"
         },
-        "SLA-1": "PASS",
-        "SLA-2 tps": 101.3,
-        "SLA-2": "PASS",
-        "SLA-3 error %": 0.2,
-        "SLA-3": "PASS"
+        "per_minute": {
+          "10": {
+            "values": {
+              "LG1": 1.37,
+              "LG2": 1.33
+            },
+            "result": "Pass"
+          },
+          "11": {
+            "values": {
+              "LG1": 1.34,
+              "LG2": 1.49
+            },
+            "result": "Pass"
+          },
+          "12": {
+            "values": {
+              "LG1": 1.41,
+              "LG2": 1.39
+            },
+            "result": "Pass"
+          },
+          "13": {
+            "values": {
+              "LG1": 1.37,
+              "LG2": 1.53
+            },
+            "result": "Pass"
+          },
+          "14": {
+            "values": {
+              "LG1": 1.43,
+              "LG2": 1.43
+            },
+            "result": "Pass"
+          },
+          "15": {
+            "values": {
+              "LG1": 1.43,
+              "LG2": 1.4
+            },
+            "result": "Pass"
+          },
+          "16": {
+            "values": {
+              "LG1": 1.36,
+              "LG2": 6.0
+            },
+            "result": "Fail"
+          },
+          "17": {
+            "values": {
+              "LG1": 1.41,
+              "LG2": 6.23
+            },
+            "result": "Fail"
+          },
+          "18": {
+            "values": {
+              "LG1": 1.57,
+              "LG2": 5.42
+            },
+            "result": "Fail"
+          },
+          "19": {
+            "values": {
+              "LG1": 1.46,
+              "LG2": 5.98
+            },
+            "result": "Fail"
+          },
+          "20": {
+            "values": {
+              "LG1": 1.39,
+              "LG2": 5.77
+            },
+            "result": "Fail"
+          },
+          "21": {
+            "values": {
+              "LG1": 1.33,
+              "LG2": 5.61
+            },
+            "result": "Fail"
+          },
+          "22": {
+            "values": {
+              "LG1": 1.41,
+              "LG2": 6.58
+            },
+            "result": "Fail"
+          },
+          "23": {
+            "values": {
+              "LG1": 1.57,
+              "LG2": 4.68
+            },
+            "result": "Fail"
+          },
+          "24": {
+            "values": {
+              "LG1": 1.37,
+              "LG2": 4.7
+            },
+            "result": "Fail"
+          },
+          "25": {
+            "values": {
+              "LG1": 1.33,
+              "LG2": 4.62
+            },
+            "result": "Fail"
+          },
+          "26": {
+            "values": {
+              "LG1": 1.33,
+              "LG2": 4.76
+            },
+            "result": "Fail"
+          },
+          "27": {
+            "values": {
+              "LG1": 1.46,
+              "LG2": 4.6
+            },
+            "result": "Fail"
+          },
+          "28": {
+            "values": {
+              "LG1": 1.44,
+              "LG2": 4.5
+            },
+            "result": "Fail"
+          },
+          "29": {
+            "values": {
+              "LG1": 1.31,
+              "LG2": 4.72
+            },
+            "result": "Fail"
+          },
+          "30": {
+            "values": {
+              "LG1": 1.69,
+              "LG2": 4.77
+            },
+            "result": "Fail"
+          },
+          "31": {
+            "values": {
+              "LG1": 1.76,
+              "LG2": 4.73
+            },
+            "result": "Fail"
+          },
+          "32": {
+            "values": {
+              "LG1": 1.68,
+              "LG2": 4.84
+            },
+            "result": "Fail"
+          },
+          "33": {
+            "values": {
+              "LG1": 1.8,
+              "LG2": 4.63
+            },
+            "result": "Fail"
+          },
+          "34": {
+            "values": {
+              "LG1": 1.47,
+              "LG2": 4.62
+            },
+            "result": "Fail"
+          },
+          "35": {
+            "values": {
+              "LG1": 1.4,
+              "LG2": 5.12
+            },
+            "result": "Fail"
+          },
+          "36": {
+            "values": {
+              "LG1": 1.44,
+              "LG2": 5.25
+            },
+            "result": "Fail"
+          },
+          "37": {
+            "values": {
+              "LG1": 1.53,
+              "LG2": 4.56
+            },
+            "result": "Fail"
+          },
+          "38": {
+            "values": {
+              "LG1": 1.29,
+              "LG2": 4.69
+            },
+            "result": "Fail"
+          },
+          "39": {
+            "values": {
+              "LG1": 1.34,
+              "LG2": 4.85
+            },
+            "result": "Fail"
+          }
+        },
+        "window_value": null,
+        "reason": "",
+        "result": "Fail",
+        "counts": {
+          "Pass": 6,
+          "Fail": 24,
+          "Not evaluated": 0
+        }
       },
-      "11": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.34,
-          "LG2": 1.49
+      "SLA-2": {
+        "definition": {
+          "id": "SLA-2",
+          "metric": "total throughput",
+          "threshold": ">= 90 transactions/s",
+          "scope": "each steady-state minute, all load generators combined",
+          "type": "throughput",
+          "operator": ">=",
+          "value": 90,
+          "unit": "TPS",
+          "evaluation": "per_minute"
         },
-        "SLA-1": "PASS",
-        "SLA-2 tps": 100.3,
-        "SLA-2": "PASS",
-        "SLA-3 error %": 0.18,
-        "SLA-3": "PASS"
+        "per_minute": {
+          "10": {
+            "value": 101.3,
+            "result": "Pass"
+          },
+          "11": {
+            "value": 100.3,
+            "result": "Pass"
+          },
+          "12": {
+            "value": 99.2,
+            "result": "Pass"
+          },
+          "13": {
+            "value": 99.7,
+            "result": "Pass"
+          },
+          "14": {
+            "value": 99.9,
+            "result": "Pass"
+          },
+          "15": {
+            "value": 100.8,
+            "result": "Pass"
+          },
+          "16": {
+            "value": 95.2,
+            "result": "Pass"
+          },
+          "17": {
+            "value": 90.7,
+            "result": "Pass"
+          },
+          "18": {
+            "value": 82.9,
+            "result": "Fail"
+          },
+          "19": {
+            "value": 75.3,
+            "result": "Fail"
+          },
+          "20": {
+            "value": 68.9,
+            "result": "Fail"
+          },
+          "21": {
+            "value": 64.1,
+            "result": "Fail"
+          },
+          "22": {
+            "value": 64.6,
+            "result": "Fail"
+          },
+          "23": {
+            "value": 66.3,
+            "result": "Fail"
+          },
+          "24": {
+            "value": 65.2,
+            "result": "Fail"
+          },
+          "25": {
+            "value": 65.7,
+            "result": "Fail"
+          },
+          "26": {
+            "value": 66.3,
+            "result": "Fail"
+          },
+          "27": {
+            "value": 65.4,
+            "result": "Fail"
+          },
+          "28": {
+            "value": 65.7,
+            "result": "Fail"
+          },
+          "29": {
+            "value": 66.5,
+            "result": "Fail"
+          },
+          "30": {
+            "value": 66.2,
+            "result": "Fail"
+          },
+          "31": {
+            "value": 65.8,
+            "result": "Fail"
+          },
+          "32": {
+            "value": 65.5,
+            "result": "Fail"
+          },
+          "33": {
+            "value": 65.9,
+            "result": "Fail"
+          },
+          "34": {
+            "value": 65.2,
+            "result": "Fail"
+          },
+          "35": {
+            "value": 66.5,
+            "result": "Fail"
+          },
+          "36": {
+            "value": 65.5,
+            "result": "Fail"
+          },
+          "37": {
+            "value": 65.5,
+            "result": "Fail"
+          },
+          "38": {
+            "value": 65.9,
+            "result": "Fail"
+          },
+          "39": {
+            "value": 66.2,
+            "result": "Fail"
+          }
+        },
+        "window_value": null,
+        "reason": "",
+        "result": "Fail",
+        "counts": {
+          "Pass": 8,
+          "Fail": 22,
+          "Not evaluated": 0
+        }
       },
-      "12": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.41,
-          "LG2": 1.39
+      "SLA-3": {
+        "definition": {
+          "id": "SLA-3",
+          "metric": "transaction error rate",
+          "threshold": "<= 1%",
+          "scope": "whole steady state, all transactions",
+          "type": "error_rate",
+          "operator": "<=",
+          "value": 1.0,
+          "unit": "%",
+          "evaluation": "window"
         },
-        "SLA-1": "PASS",
-        "SLA-2 tps": 99.2,
-        "SLA-2": "PASS",
-        "SLA-3 error %": 0.18,
-        "SLA-3": "PASS"
-      },
-      "13": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.37,
-          "LG2": 1.53
+        "per_minute": {
+          "10": {
+            "value": 0.2
+          },
+          "11": {
+            "value": 0.18
+          },
+          "12": {
+            "value": 0.18
+          },
+          "13": {
+            "value": 0.2
+          },
+          "14": {
+            "value": 0.2
+          },
+          "15": {
+            "value": 0.2
+          },
+          "16": {
+            "value": 1.91
+          },
+          "17": {
+            "value": 9.46
+          },
+          "18": {
+            "value": 8.62
+          },
+          "19": {
+            "value": 7.21
+          },
+          "20": {
+            "value": 5.37
+          },
+          "21": {
+            "value": 5.93
+          },
+          "22": {
+            "value": 4.87
+          },
+          "23": {
+            "value": 1.03
+          },
+          "24": {
+            "value": 1.15
+          },
+          "25": {
+            "value": 1.14
+          },
+          "26": {
+            "value": 1.06
+          },
+          "27": {
+            "value": 1.04
+          },
+          "28": {
+            "value": 1.17
+          },
+          "29": {
+            "value": 1.15
+          },
+          "30": {
+            "value": 1.16
+          },
+          "31": {
+            "value": 1.22
+          },
+          "32": {
+            "value": 1.25
+          },
+          "33": {
+            "value": 1.14
+          },
+          "34": {
+            "value": 1.07
+          },
+          "35": {
+            "value": 1.0
+          },
+          "36": {
+            "value": 1.04
+          },
+          "37": {
+            "value": 1.12
+          },
+          "38": {
+            "value": 1.19
+          },
+          "39": {
+            "value": 1.03
+          }
         },
-        "SLA-1": "PASS",
-        "SLA-2 tps": 99.7,
-        "SLA-2": "PASS",
-        "SLA-3 error %": 0.2,
-        "SLA-3": "PASS"
-      },
-      "14": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.43,
-          "LG2": 1.43
-        },
-        "SLA-1": "PASS",
-        "SLA-2 tps": 99.9,
-        "SLA-2": "PASS",
-        "SLA-3 error %": 0.2,
-        "SLA-3": "PASS"
-      },
-      "15": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.43,
-          "LG2": 1.4
-        },
-        "SLA-1": "PASS",
-        "SLA-2 tps": 100.8,
-        "SLA-2": "PASS",
-        "SLA-3 error %": 0.2,
-        "SLA-3": "PASS"
-      },
-      "16": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.36,
-          "LG2": 6.0
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 95.2,
-        "SLA-2": "PASS",
-        "SLA-3 error %": 1.91,
-        "SLA-3": "FAIL"
-      },
-      "17": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.41,
-          "LG2": 6.23
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 90.7,
-        "SLA-2": "PASS",
-        "SLA-3 error %": 9.46,
-        "SLA-3": "FAIL"
-      },
-      "18": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.57,
-          "LG2": 5.42
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 82.9,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 8.62,
-        "SLA-3": "FAIL"
-      },
-      "19": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.46,
-          "LG2": 5.98
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 75.3,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 7.21,
-        "SLA-3": "FAIL"
-      },
-      "20": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.39,
-          "LG2": 5.77
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 68.9,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 5.37,
-        "SLA-3": "FAIL"
-      },
-      "21": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.33,
-          "LG2": 5.61
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 64.1,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 5.93,
-        "SLA-3": "FAIL"
-      },
-      "22": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.41,
-          "LG2": 6.58
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 64.6,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 4.87,
-        "SLA-3": "FAIL"
-      },
-      "23": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.57,
-          "LG2": 4.68
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 66.3,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.03,
-        "SLA-3": "FAIL"
-      },
-      "24": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.37,
-          "LG2": 4.7
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 65.2,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.15,
-        "SLA-3": "FAIL"
-      },
-      "25": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.33,
-          "LG2": 4.62
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 65.7,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.14,
-        "SLA-3": "FAIL"
-      },
-      "26": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.33,
-          "LG2": 4.76
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 66.3,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.06,
-        "SLA-3": "FAIL"
-      },
-      "27": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.46,
-          "LG2": 4.6
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 65.4,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.04,
-        "SLA-3": "FAIL"
-      },
-      "28": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.44,
-          "LG2": 4.5
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 65.7,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.17,
-        "SLA-3": "FAIL"
-      },
-      "29": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.31,
-          "LG2": 4.72
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 66.5,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.15,
-        "SLA-3": "FAIL"
-      },
-      "30": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.69,
-          "LG2": 4.77
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 66.2,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.16,
-        "SLA-3": "FAIL"
-      },
-      "31": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.76,
-          "LG2": 4.73
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 65.8,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.22,
-        "SLA-3": "FAIL"
-      },
-      "32": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.68,
-          "LG2": 4.84
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 65.5,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.25,
-        "SLA-3": "FAIL"
-      },
-      "33": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.8,
-          "LG2": 4.63
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 65.9,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.14,
-        "SLA-3": "FAIL"
-      },
-      "34": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.47,
-          "LG2": 4.62
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 65.2,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.07,
-        "SLA-3": "FAIL"
-      },
-      "35": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.4,
-          "LG2": 5.12
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 66.5,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.0,
-        "SLA-3": "PASS"
-      },
-      "36": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.44,
-          "LG2": 5.25
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 65.5,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.04,
-        "SLA-3": "FAIL"
-      },
-      "37": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.53,
-          "LG2": 4.56
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 65.5,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.12,
-        "SLA-3": "FAIL"
-      },
-      "38": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.29,
-          "LG2": 4.69
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 65.9,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.19,
-        "SLA-3": "FAIL"
-      },
-      "39": {
-        "SLA-1 checkout p95 by generator (s)": {
-          "LG1": 1.34,
-          "LG2": 4.85
-        },
-        "SLA-1": "FAIL",
-        "SLA-2 tps": 66.2,
-        "SLA-2": "FAIL",
-        "SLA-3 error %": 1.03,
-        "SLA-3": "FAIL"
+        "window_value": 2.09,
+        "reason": "",
+        "result": "Fail",
+        "counts": {}
       }
     },
     "failing_minutes": {
@@ -1174,35 +1331,11 @@
         38,
         39
       ],
-      "SLA-3": [
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22,
-        23,
-        24,
-        25,
-        26,
-        27,
-        28,
-        29,
-        30,
-        31,
-        32,
-        33,
-        34,
-        36,
-        37,
-        38,
-        39
-      ]
+      "SLA-3": []
     },
     "steady_error_rate_pct": 2.09,
     "first_failing_minute": 16,
-    "note": "SLA-1 is judged per generator per minute because p95 values cannot be averaged."
+    "note": "Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged."
   },
   "summaries": {
     "transactions.csv": {

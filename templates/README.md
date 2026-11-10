@@ -2,7 +2,7 @@
 
 | Template | Use |
 | --- | --- |
-| [scenario.json](scenario.json) | Describe a test run so the deterministic tooling and the agents can analyze it. Copy it into `<your-folder>/data/` and fill it in. |
+| [scenario.json](scenario.json) | Describe a test run so the deterministic tooling and the agents can analyze it. Copy it into `<your-folder>/data/` and fill it in. Each SLA needs a type, operator, value and evaluation mode, so the tooling can evaluate it; anything it cannot evaluate is reported as Not evaluated. |
 | [go-no-go.md](go-no-go.md) | The structure of the go/no-go recommendation, for analysis done by hand. |
 | [run-state.example.json](run-state.example.json) | Example of the proposed orchestrator run state (concept, not yet produced by the workflow). |
 | [recommendation.md](recommendation.md) | One recommendation, with type, owner, success metric and the result that would show the hypothesis is wrong. |
