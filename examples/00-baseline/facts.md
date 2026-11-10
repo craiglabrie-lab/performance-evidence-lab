@@ -64,18 +64,18 @@ From `transaction_summary.csv`, the load tool's run-level summary. Response time
 
 ## Capacity: CPU-bound throughput ceiling (conditional estimate)
 
-Utilization Law (U = X × D): CPU % per transaction/s, and the throughput each tier would reach at 80% CPU **if CPU were the only limit**. This is not the tier's capacity. When another resource is saturated, it limits throughput first. Only valid if CPU is the limiting resource. Also assumes even load balancing across app nodes and CPU that scales linearly with throughput. Applies to this test environment only; do not scale to production without stating the ratio.
+Utilization Law (U = X × D): CPU % per transaction/s, and the throughput each tier would reach at 80% CPU **if CPU were the only limit**. This is not the tier's capacity. When another resource is saturated, it limits throughput first. "No other monitored limit detected" does not prove CPU is the limit: unmonitored resources such as external APIs, the network or locks can still cap throughput. Only valid if CPU is the limiting resource. Also assumes even load balancing across app nodes and CPU that scales linearly with throughput. Applies to this test environment only; do not scale to production without stating the ratio.
 
 | Window | Tier | Mean CPU % | TPS handled | CPU % per TPS | CPU-bound ceiling (TPS) | Other limits seen |
 | --- | --- | --- | --- | --- | --- | --- |
-| min 0-9 | app1 | 33.0 | 27.5 | 1.201 | 66.6 | none seen |
-| min 0-9 | app2 | 32.4 | 27.5 | 1.18 | 67.8 | none seen |
+| min 0-9 | app1 | 33.0 | 27.5 | 1.201 | 66.6 | no other monitored limit detected |
+| min 0-9 | app2 | 32.4 | 27.5 | 1.18 | 67.8 | no other monitored limit detected |
 | min 0-9 | database | 17.9 | 54.9 | 0.326 | 245.6 | not checked |
-| min 10-39 | app1 | 52.9 | 50.0 | 1.058 | 75.6 | none seen |
-| min 10-39 | app2 | 53.3 | 50.0 | 1.065 | 75.1 | none seen |
+| min 10-39 | app1 | 52.9 | 50.0 | 1.058 | 75.6 | no other monitored limit detected |
+| min 10-39 | app2 | 53.3 | 50.0 | 1.065 | 75.1 | no other monitored limit detected |
 | min 10-39 | database | 30.5 | 100.1 | 0.305 | 262.3 | not checked |
-| min 40-44 | app1 | 25.5 | 25.0 | 1.022 | 78.3 | none seen |
-| min 40-44 | app2 | 25.4 | 25.0 | 1.018 | 78.6 | none seen |
+| min 40-44 | app1 | 25.5 | 25.0 | 1.022 | 78.3 | no other monitored limit detected |
+| min 40-44 | app2 | 25.4 | 25.0 | 1.018 | 78.6 | no other monitored limit detected |
 | min 40-44 | database | 14.7 | 49.9 | 0.294 | 272.1 | not checked |
 
 ## Input checks
@@ -167,36 +167,36 @@ Per minute:
 
 | Min | SLA-1 | SLA-2 | SLA-3 |
 | --- | --- | --- | --- |
-| 10 | LG1 1.39, LG2 1.42: Pass | 100.5: Pass | 0.2 (judged on window) |
-| 11 | LG1 1.37, LG2 1.35: Pass | 100.6: Pass | 0.18 (judged on window) |
+| 10 | LG1 1.39, LG2 1.42: Pass | 100.48: Pass | 0.2 (judged on window) |
+| 11 | LG1 1.37, LG2 1.35: Pass | 100.62: Pass | 0.18 (judged on window) |
 | 12 | LG1 1.4, LG2 1.41: Pass | 101.2: Pass | 0.21 (judged on window) |
-| 13 | LG1 1.49, LG2 1.31: Pass | 99.4: Pass | 0.22 (judged on window) |
-| 14 | LG1 1.45, LG2 1.35: Pass | 99.8: Pass | 0.22 (judged on window) |
-| 15 | LG1 1.51, LG2 1.51: Pass | 100.4: Pass | 0.18 (judged on window) |
-| 16 | LG1 1.41, LG2 1.44: Pass | 100.0: Pass | 0.22 (judged on window) |
-| 17 | LG1 1.44, LG2 1.48: Pass | 101.2: Pass | 0.2 (judged on window) |
-| 18 | LG1 1.39, LG2 1.4: Pass | 99.2: Pass | 0.22 (judged on window) |
-| 19 | LG1 1.34, LG2 1.48: Pass | 99.3: Pass | 0.2 (judged on window) |
-| 20 | LG1 1.4, LG2 1.33: Pass | 99.5: Pass | 0.17 (judged on window) |
-| 21 | LG1 1.32, LG2 1.32: Pass | 99.1: Pass | 0.2 (judged on window) |
-| 22 | LG1 1.33, LG2 1.47: Pass | 99.9: Pass | 0.22 (judged on window) |
-| 23 | LG1 1.45, LG2 1.36: Pass | 99.4: Pass | 0.18 (judged on window) |
-| 24 | LG1 1.49, LG2 1.39: Pass | 100.8: Pass | 0.2 (judged on window) |
+| 13 | LG1 1.49, LG2 1.31: Pass | 99.42: Pass | 0.22 (judged on window) |
+| 14 | LG1 1.45, LG2 1.35: Pass | 99.82: Pass | 0.22 (judged on window) |
+| 15 | LG1 1.51, LG2 1.51: Pass | 100.42: Pass | 0.18 (judged on window) |
+| 16 | LG1 1.41, LG2 1.44: Pass | 99.95: Pass | 0.22 (judged on window) |
+| 17 | LG1 1.44, LG2 1.48: Pass | 101.22: Pass | 0.2 (judged on window) |
+| 18 | LG1 1.39, LG2 1.4: Pass | 99.22: Pass | 0.22 (judged on window) |
+| 19 | LG1 1.34, LG2 1.48: Pass | 99.32: Pass | 0.2 (judged on window) |
+| 20 | LG1 1.4, LG2 1.33: Pass | 99.52: Pass | 0.17 (judged on window) |
+| 21 | LG1 1.32, LG2 1.32: Pass | 99.08: Pass | 0.2 (judged on window) |
+| 22 | LG1 1.33, LG2 1.47: Pass | 99.93: Pass | 0.22 (judged on window) |
+| 23 | LG1 1.45, LG2 1.36: Pass | 99.37: Pass | 0.18 (judged on window) |
+| 24 | LG1 1.49, LG2 1.39: Pass | 100.77: Pass | 0.2 (judged on window) |
 | 25 | LG1 1.45, LG2 1.49: Pass | 99.6: Pass | 0.18 (judged on window) |
-| 26 | LG1 1.44, LG2 1.36: Pass | 98.6: Pass | 0.2 (judged on window) |
-| 27 | LG1 1.49, LG2 1.43: Pass | 100.2: Pass | 0.25 (judged on window) |
-| 28 | LG1 1.45, LG2 1.4: Pass | 100.2: Pass | 0.2 (judged on window) |
-| 29 | LG1 1.41, LG2 1.51: Pass | 101.4: Pass | 0.2 (judged on window) |
+| 26 | LG1 1.44, LG2 1.36: Pass | 98.57: Pass | 0.2 (judged on window) |
+| 27 | LG1 1.49, LG2 1.43: Pass | 100.17: Pass | 0.25 (judged on window) |
+| 28 | LG1 1.45, LG2 1.4: Pass | 100.15: Pass | 0.2 (judged on window) |
+| 29 | LG1 1.41, LG2 1.51: Pass | 101.42: Pass | 0.2 (judged on window) |
 | 30 | LG1 1.44, LG2 1.31: Pass | 100.1: Pass | 0.2 (judged on window) |
-| 31 | LG1 1.35, LG2 1.41: Pass | 100.0: Pass | 0.18 (judged on window) |
-| 32 | LG1 1.36, LG2 1.43: Pass | 101.7: Pass | 0.18 (judged on window) |
+| 31 | LG1 1.35, LG2 1.41: Pass | 100.03: Pass | 0.18 (judged on window) |
+| 32 | LG1 1.36, LG2 1.43: Pass | 101.67: Pass | 0.18 (judged on window) |
 | 33 | LG1 1.4, LG2 1.46: Pass | 101.1: Pass | 0.18 (judged on window) |
-| 34 | LG1 1.54, LG2 1.31: Pass | 99.8: Pass | 0.18 (judged on window) |
-| 35 | LG1 1.33, LG2 1.47: Pass | 100.7: Pass | 0.22 (judged on window) |
-| 36 | LG1 1.38, LG2 1.45: Pass | 98.3: Pass | 0.19 (judged on window) |
+| 34 | LG1 1.54, LG2 1.31: Pass | 99.78: Pass | 0.18 (judged on window) |
+| 35 | LG1 1.33, LG2 1.47: Pass | 100.67: Pass | 0.22 (judged on window) |
+| 36 | LG1 1.38, LG2 1.45: Pass | 98.35: Pass | 0.19 (judged on window) |
 | 37 | LG1 1.42, LG2 1.41: Pass | 100.9: Pass | 0.21 (judged on window) |
-| 38 | LG1 1.37, LG2 1.5: Pass | 99.5: Pass | 0.18 (judged on window) |
-| 39 | LG1 1.37, LG2 1.43: Pass | 99.6: Pass | 0.22 (judged on window) |
+| 38 | LG1 1.37, LG2 1.5: Pass | 99.48: Pass | 0.18 (judged on window) |
+| 39 | LG1 1.37, LG2 1.43: Pass | 99.62: Pass | 0.22 (judged on window) |
 
 ## Metrics by time window
 

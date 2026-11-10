@@ -13,7 +13,7 @@ A test run folder containing `data/scenario.json` (run identity, test objective,
    - flags possible prompt-injection text in logs.
 
    - builds the transaction summary table, errors by type and the baseline comparison;
-   - validates the inputs (required fields and columns, malformed values, elapsed minutes against timestamps, duplicates) and lists every problem under "Input checks";
+   - validates the inputs (required fields and columns, malformed values, elapsed minutes against timestamps, duplicates, missing transaction types, reconciliation with the run-level summary) and lists every problem under "Input checks";
    - calculates a CPU-bound throughput ceiling per tier (Utilization Law), flagged where another resource is saturated;
    - checks whether the baseline comparison is comparable;
    - draws the standard graphs: running Vusers, throughput, checkout p95 and errors over time.

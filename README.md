@@ -96,7 +96,7 @@ Before any agent runs, [`tools/analyze.py`](tools/analyze.py) builds a computed 
 - **Errors by type**: client timeouts, HTTP 5xx and content check failures.
 - **Capacity**: a CPU-bound throughput ceiling per tier (Utilization Law). It is a conditional estimate, not capacity: windows where a connection pool, threads or pool wait are saturated are flagged as "CPU is not the limiting resource".
 - **Load profile by minute**: scheduled and running Vusers, TPS, error rate, and implied cycle time (Little's Law).
-- **Input checks and data inventory**: required fields and columns, malformed values (treated as missing, never zero), elapsed minutes checked against timestamps, duplicates, coverage, monitoring gaps, time zone normalization, and flagged prompt-injection text.
+- **Input checks and data inventory**: required fields and columns; malformed, NaN or infinite values (treated as missing, never zero); elapsed minutes checked against timestamps; duplicates (exact copies counted once, conflicting copies treated as missing); every expected load generator and transaction present each minute; per-minute counts reconciled with the run-level summary; coverage, monitoring gaps, time zone normalization, and flagged prompt-injection text.
 
 ![Checkout p95 response time by load generator, test run 01](examples/01-generator-saturation/charts/checkout-p95.svg)
 

@@ -51,6 +51,18 @@ The repository was reviewed from three points of view: a performance engineer, a
 | EXT-7 | Check supplied elapsed minutes against normalized timestamps. | **Implemented**: elapsed minutes are recomputed from the UTC timestamp. Mismatches are corrected and reported. | `tools/analyze.py` |
 | EXT-3 | Add tests that remove data and change thresholds. | **Implemented**: tests cover changed thresholds, a blank p95, missing load generator rows, a minute with no transactions, unsupported SLA definitions, window evaluation with and without a run-level summary, missing scenario fields and columns, malformed values, elapsed-minute mismatches, baseline comparability, and the CPU ceiling's limits (27 tests in total). | `tests/test_analyze.py` |
 
+## External review, second pass: data-quality boundaries
+
+| # | Feedback | Status | Where |
+| --- | --- | --- | --- |
+| EXT-8 | Duplicate rows were reported but still counted, which could inflate throughput or change an SLA verdict. | **Implemented**: each record has an identity (trace ID, or minute + load generator or node + transaction). Exact duplicates are counted once; conflicting duplicates are all treated as missing, so the SLA becomes Not evaluated. | `tools/analyze.py` |
+| EXT-9 | A missing transaction type (for example, LG1's checkout row) still let throughput and error-rate SLAs pass. | **Implemented**: every evaluated minute must have every expected load generator and transaction (from `workload_model.transactions`); otherwise it is Not evaluated. Steady-state counts are reconciled with the run-level transaction summary, and any mismatch makes window SLAs Not evaluated and appears under Input checks. | `tools/analyze.py`, `scenario.json` |
+| EXT-10 | Values were rounded before the threshold comparison (89.983 TPS rounded to 90.0 would pass a 90 TPS SLA). | **Implemented**: comparisons use full precision; rounding is for display only. | `tools/analyze.py` |
+| EXT-11 | Malformed APM trace values could crash the analyzer; missing-value handling was inconsistent. | **Implemented**: traces, the CPU ceiling and baseline comparison all use the same missing-value handling; NaN and infinite values are treated as missing everywhere. | `tools/analyze.py` |
+| EXT-12 | `cpu_is_limiting` asserted more than the data showed. | **Implemented**: renamed to `other_monitored_limit_detected`, and the summary says "no other monitored limit detected", noting that unmonitored resources can still cap throughput. | `tools/analyze.py` |
+
+Eight new tests cover exact and conflicting duplicates, a missing transaction type, summary reconciliation, threshold comparisons at full precision for throughput and error rate, malformed trace values, and NaN or infinite values (35 tests in total).
+
 ## Role names
 
 The roles were also renamed to match performance testing practice:

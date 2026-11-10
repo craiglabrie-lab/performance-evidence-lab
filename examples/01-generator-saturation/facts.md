@@ -80,21 +80,21 @@ Steady-state throughput: 75.4 TPS against 100.1 TPS in the baseline (-24.7%).
 
 ## Capacity: CPU-bound throughput ceiling (conditional estimate)
 
-Utilization Law (U = X × D): CPU % per transaction/s, and the throughput each tier would reach at 80% CPU **if CPU were the only limit**. This is not the tier's capacity. When another resource is saturated, it limits throughput first. Only valid if CPU is the limiting resource. Also assumes even load balancing across app nodes and CPU that scales linearly with throughput. Applies to this test environment only; do not scale to production without stating the ratio.
+Utilization Law (U = X × D): CPU % per transaction/s, and the throughput each tier would reach at 80% CPU **if CPU were the only limit**. This is not the tier's capacity. When another resource is saturated, it limits throughput first. "No other monitored limit detected" does not prove CPU is the limit: unmonitored resources such as external APIs, the network or locks can still cap throughput. Only valid if CPU is the limiting resource. Also assumes even load balancing across app nodes and CPU that scales linearly with throughput. Applies to this test environment only; do not scale to production without stating the ratio.
 
 | Window | Tier | Mean CPU % | TPS handled | CPU % per TPS | CPU-bound ceiling (TPS) | Other limits seen |
 | --- | --- | --- | --- | --- | --- | --- |
-| min 0-9 | app1 | 34.5 | 27.5 | 1.253 | 63.8 | none seen |
-| min 0-9 | app2 | 33.8 | 27.5 | 1.23 | 65.1 | none seen |
+| min 0-9 | app1 | 34.5 | 27.5 | 1.253 | 63.8 | no other monitored limit detected |
+| min 0-9 | app2 | 33.8 | 27.5 | 1.23 | 65.1 | no other monitored limit detected |
 | min 0-9 | database | 19.2 | 55.0 | 0.349 | 228.9 | not checked |
-| min 10-15 | app1 | 56.1 | 50.1 | 1.12 | 71.4 | none seen |
-| min 10-15 | app2 | 54.6 | 50.1 | 1.091 | 73.3 | none seen |
+| min 10-15 | app1 | 56.1 | 50.1 | 1.12 | 71.4 | no other monitored limit detected |
+| min 10-15 | app2 | 54.6 | 50.1 | 1.091 | 73.3 | no other monitored limit detected |
 | min 10-15 | database | 30.0 | 100.2 | 0.3 | 267.0 | not checked |
-| min 16-39 | app1 | 40.6 | 34.6 | 1.173 | 68.2 | none seen |
-| min 16-39 | app2 | 41.0 | 34.6 | 1.185 | 67.5 | none seen |
+| min 16-39 | app1 | 40.6 | 34.6 | 1.173 | 68.2 | no other monitored limit detected |
+| min 16-39 | app2 | 41.0 | 34.6 | 1.185 | 67.5 | no other monitored limit detected |
 | min 16-39 | database | 25.5 | 69.2 | 0.369 | 217.1 | not checked |
-| min 40-44 | app1 | 23.4 | 19.7 | 1.184 | 67.6 | none seen |
-| min 40-44 | app2 | 22.9 | 19.7 | 1.16 | 69.0 | none seen |
+| min 40-44 | app1 | 23.4 | 19.7 | 1.184 | 67.6 | no other monitored limit detected |
+| min 40-44 | app2 | 22.9 | 19.7 | 1.16 | 69.0 | no other monitored limit detected |
 | min 40-44 | database | 13.4 | 39.5 | 0.34 | 235.4 | not checked |
 
 ## Input checks
@@ -185,36 +185,36 @@ Per minute:
 
 | Min | SLA-1 | SLA-2 | SLA-3 |
 | --- | --- | --- | --- |
-| 10 | LG1 1.37, LG2 1.33: Pass | 101.3: Pass | 0.2 (judged on window) |
-| 11 | LG1 1.34, LG2 1.49: Pass | 100.3: Pass | 0.18 (judged on window) |
-| 12 | LG1 1.41, LG2 1.39: Pass | 99.2: Pass | 0.18 (judged on window) |
-| 13 | LG1 1.37, LG2 1.53: Pass | 99.7: Pass | 0.2 (judged on window) |
-| 14 | LG1 1.43, LG2 1.43: Pass | 99.9: Pass | 0.2 (judged on window) |
+| 10 | LG1 1.37, LG2 1.33: Pass | 101.35: Pass | 0.2 (judged on window) |
+| 11 | LG1 1.34, LG2 1.49: Pass | 100.32: Pass | 0.18 (judged on window) |
+| 12 | LG1 1.41, LG2 1.39: Pass | 99.18: Pass | 0.18 (judged on window) |
+| 13 | LG1 1.37, LG2 1.53: Pass | 99.67: Pass | 0.2 (judged on window) |
+| 14 | LG1 1.43, LG2 1.43: Pass | 99.87: Pass | 0.2 (judged on window) |
 | 15 | LG1 1.43, LG2 1.4: Pass | 100.8: Pass | 0.2 (judged on window) |
-| 16 | LG1 1.36, LG2 6.0: Fail | 95.2: Pass | 1.91 (judged on window) |
+| 16 | LG1 1.36, LG2 6.0: Fail | 95.18: Pass | 1.91 (judged on window) |
 | 17 | LG1 1.41, LG2 6.23: Fail | 90.7: Pass | 9.46 (judged on window) |
-| 18 | LG1 1.57, LG2 5.42: Fail | 82.9: Fail | 8.62 (judged on window) |
-| 19 | LG1 1.46, LG2 5.98: Fail | 75.3: Fail | 7.21 (judged on window) |
-| 20 | LG1 1.39, LG2 5.77: Fail | 68.9: Fail | 5.37 (judged on window) |
-| 21 | LG1 1.33, LG2 5.61: Fail | 64.1: Fail | 5.93 (judged on window) |
-| 22 | LG1 1.41, LG2 6.58: Fail | 64.6: Fail | 4.87 (judged on window) |
-| 23 | LG1 1.57, LG2 4.68: Fail | 66.3: Fail | 1.03 (judged on window) |
-| 24 | LG1 1.37, LG2 4.7: Fail | 65.2: Fail | 1.15 (judged on window) |
-| 25 | LG1 1.33, LG2 4.62: Fail | 65.7: Fail | 1.14 (judged on window) |
+| 18 | LG1 1.57, LG2 5.42: Fail | 82.92: Fail | 8.62 (judged on window) |
+| 19 | LG1 1.46, LG2 5.98: Fail | 75.32: Fail | 7.21 (judged on window) |
+| 20 | LG1 1.39, LG2 5.77: Fail | 68.88: Fail | 5.37 (judged on window) |
+| 21 | LG1 1.33, LG2 5.61: Fail | 64.12: Fail | 5.93 (judged on window) |
+| 22 | LG1 1.41, LG2 6.58: Fail | 64.62: Fail | 4.87 (judged on window) |
+| 23 | LG1 1.57, LG2 4.68: Fail | 66.27: Fail | 1.03 (judged on window) |
+| 24 | LG1 1.37, LG2 4.7: Fail | 65.25: Fail | 1.15 (judged on window) |
+| 25 | LG1 1.33, LG2 4.62: Fail | 65.67: Fail | 1.14 (judged on window) |
 | 26 | LG1 1.33, LG2 4.76: Fail | 66.3: Fail | 1.06 (judged on window) |
-| 27 | LG1 1.46, LG2 4.6: Fail | 65.4: Fail | 1.04 (judged on window) |
-| 28 | LG1 1.44, LG2 4.5: Fail | 65.7: Fail | 1.17 (judged on window) |
-| 29 | LG1 1.31, LG2 4.72: Fail | 66.5: Fail | 1.15 (judged on window) |
-| 30 | LG1 1.69, LG2 4.77: Fail | 66.2: Fail | 1.16 (judged on window) |
-| 31 | LG1 1.76, LG2 4.73: Fail | 65.8: Fail | 1.22 (judged on window) |
-| 32 | LG1 1.68, LG2 4.84: Fail | 65.5: Fail | 1.25 (judged on window) |
+| 27 | LG1 1.46, LG2 4.6: Fail | 65.42: Fail | 1.04 (judged on window) |
+| 28 | LG1 1.44, LG2 4.5: Fail | 65.65: Fail | 1.17 (judged on window) |
+| 29 | LG1 1.31, LG2 4.72: Fail | 66.48: Fail | 1.15 (judged on window) |
+| 30 | LG1 1.69, LG2 4.77: Fail | 66.17: Fail | 1.16 (judged on window) |
+| 31 | LG1 1.76, LG2 4.73: Fail | 65.83: Fail | 1.22 (judged on window) |
+| 32 | LG1 1.68, LG2 4.84: Fail | 65.52: Fail | 1.25 (judged on window) |
 | 33 | LG1 1.8, LG2 4.63: Fail | 65.9: Fail | 1.14 (judged on window) |
-| 34 | LG1 1.47, LG2 4.62: Fail | 65.2: Fail | 1.07 (judged on window) |
+| 34 | LG1 1.47, LG2 4.62: Fail | 65.22: Fail | 1.07 (judged on window) |
 | 35 | LG1 1.4, LG2 5.12: Fail | 66.5: Fail | 1.0 (judged on window) |
-| 36 | LG1 1.44, LG2 5.25: Fail | 65.5: Fail | 1.04 (judged on window) |
-| 37 | LG1 1.53, LG2 4.56: Fail | 65.5: Fail | 1.12 (judged on window) |
-| 38 | LG1 1.29, LG2 4.69: Fail | 65.9: Fail | 1.19 (judged on window) |
-| 39 | LG1 1.34, LG2 4.85: Fail | 66.2: Fail | 1.03 (judged on window) |
+| 36 | LG1 1.44, LG2 5.25: Fail | 65.55: Fail | 1.04 (judged on window) |
+| 37 | LG1 1.53, LG2 4.56: Fail | 65.45: Fail | 1.12 (judged on window) |
+| 38 | LG1 1.29, LG2 4.69: Fail | 65.88: Fail | 1.19 (judged on window) |
+| 39 | LG1 1.34, LG2 4.85: Fail | 66.25: Fail | 1.03 (judged on window) |
 
 ## Metrics by time window
 

@@ -1051,11 +1051,11 @@
         },
         "per_minute": {
           "10": {
-            "value": 100.5,
+            "value": 100.48,
             "result": "Pass"
           },
           "11": {
-            "value": 100.6,
+            "value": 100.62,
             "result": "Pass"
           },
           "12": {
@@ -1063,51 +1063,51 @@
             "result": "Pass"
           },
           "13": {
-            "value": 99.4,
+            "value": 99.42,
             "result": "Pass"
           },
           "14": {
-            "value": 99.8,
+            "value": 99.82,
             "result": "Pass"
           },
           "15": {
-            "value": 100.4,
+            "value": 100.42,
             "result": "Pass"
           },
           "16": {
-            "value": 100.0,
+            "value": 99.95,
             "result": "Pass"
           },
           "17": {
-            "value": 101.2,
+            "value": 101.22,
             "result": "Pass"
           },
           "18": {
-            "value": 99.2,
+            "value": 99.22,
             "result": "Pass"
           },
           "19": {
-            "value": 99.3,
+            "value": 99.32,
             "result": "Pass"
           },
           "20": {
-            "value": 99.5,
+            "value": 99.52,
             "result": "Pass"
           },
           "21": {
-            "value": 99.1,
+            "value": 99.08,
             "result": "Pass"
           },
           "22": {
-            "value": 99.9,
+            "value": 99.93,
             "result": "Pass"
           },
           "23": {
-            "value": 99.4,
+            "value": 99.37,
             "result": "Pass"
           },
           "24": {
-            "value": 100.8,
+            "value": 100.77,
             "result": "Pass"
           },
           "25": {
@@ -1115,19 +1115,19 @@
             "result": "Pass"
           },
           "26": {
-            "value": 98.6,
+            "value": 98.57,
             "result": "Pass"
           },
           "27": {
-            "value": 100.2,
+            "value": 100.17,
             "result": "Pass"
           },
           "28": {
-            "value": 100.2,
+            "value": 100.15,
             "result": "Pass"
           },
           "29": {
-            "value": 101.4,
+            "value": 101.42,
             "result": "Pass"
           },
           "30": {
@@ -1135,11 +1135,11 @@
             "result": "Pass"
           },
           "31": {
-            "value": 100.0,
+            "value": 100.03,
             "result": "Pass"
           },
           "32": {
-            "value": 101.7,
+            "value": 101.67,
             "result": "Pass"
           },
           "33": {
@@ -1147,15 +1147,15 @@
             "result": "Pass"
           },
           "34": {
-            "value": 99.8,
+            "value": 99.78,
             "result": "Pass"
           },
           "35": {
-            "value": 100.7,
+            "value": 100.67,
             "result": "Pass"
           },
           "36": {
-            "value": 98.3,
+            "value": 98.35,
             "result": "Pass"
           },
           "37": {
@@ -1163,11 +1163,11 @@
             "result": "Pass"
           },
           "38": {
-            "value": 99.5,
+            "value": 99.48,
             "result": "Pass"
           },
           "39": {
-            "value": 99.6,
+            "value": 99.62,
             "result": "Pass"
           }
         },
@@ -1295,6 +1295,12 @@
       "SLA-2": [],
       "SLA-3": []
     },
+    "expected_transactions": [
+      "search",
+      "add_to_cart",
+      "checkout"
+    ],
+    "summary_mismatches": [],
     "steady_error_rate_pct": 0.2,
     "first_failing_minute": null,
     "note": "Calculated from the data only; the Test Execution Analyst decides whether the run is valid enough to report these as SLA results. Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged."
@@ -3279,6 +3285,7 @@
   "traces": {
     "min 0-9": {
       "traces": 30,
+      "traces_with_missing_values": 0,
       "median_total_ms": 474.0,
       "median_pool_wait_ms": 0.0,
       "median_sql_ms": 41.0,
@@ -3288,6 +3295,7 @@
     },
     "min 10-39": {
       "traces": 90,
+      "traces_with_missing_values": 0,
       "median_total_ms": 454.0,
       "median_pool_wait_ms": 0.0,
       "median_sql_ms": 40.0,
@@ -3297,6 +3305,7 @@
     },
     "min 40-44": {
       "traces": 12,
+      "traces_with_missing_values": 0,
       "median_total_ms": 454.0,
       "median_pool_wait_ms": 0.0,
       "median_sql_ms": 44.0,
@@ -3560,7 +3569,7 @@
           "cpu_pct_per_tps": 1.201,
           "cpu_bound_ceiling_tps": 66.6,
           "other_limits_seen": [],
-          "cpu_is_limiting": true
+          "other_monitored_limit_detected": false
         },
         "app2": {
           "mean_cpu_pct": 32.4,
@@ -3568,7 +3577,7 @@
           "cpu_pct_per_tps": 1.18,
           "cpu_bound_ceiling_tps": 67.8,
           "other_limits_seen": [],
-          "cpu_is_limiting": true
+          "other_monitored_limit_detected": false
         },
         "database": {
           "mean_cpu_pct": 17.9,
@@ -3576,7 +3585,7 @@
           "cpu_pct_per_tps": 0.326,
           "cpu_bound_ceiling_tps": 245.6,
           "other_limits_seen": [],
-          "cpu_is_limiting": null
+          "other_monitored_limit_detected": null
         }
       },
       "min 10-39": {
@@ -3586,7 +3595,7 @@
           "cpu_pct_per_tps": 1.058,
           "cpu_bound_ceiling_tps": 75.6,
           "other_limits_seen": [],
-          "cpu_is_limiting": true
+          "other_monitored_limit_detected": false
         },
         "app2": {
           "mean_cpu_pct": 53.3,
@@ -3594,7 +3603,7 @@
           "cpu_pct_per_tps": 1.065,
           "cpu_bound_ceiling_tps": 75.1,
           "other_limits_seen": [],
-          "cpu_is_limiting": true
+          "other_monitored_limit_detected": false
         },
         "database": {
           "mean_cpu_pct": 30.5,
@@ -3602,7 +3611,7 @@
           "cpu_pct_per_tps": 0.305,
           "cpu_bound_ceiling_tps": 262.3,
           "other_limits_seen": [],
-          "cpu_is_limiting": null
+          "other_monitored_limit_detected": null
         }
       },
       "min 40-44": {
@@ -3612,7 +3621,7 @@
           "cpu_pct_per_tps": 1.022,
           "cpu_bound_ceiling_tps": 78.3,
           "other_limits_seen": [],
-          "cpu_is_limiting": true
+          "other_monitored_limit_detected": false
         },
         "app2": {
           "mean_cpu_pct": 25.4,
@@ -3620,7 +3629,7 @@
           "cpu_pct_per_tps": 1.018,
           "cpu_bound_ceiling_tps": 78.6,
           "other_limits_seen": [],
-          "cpu_is_limiting": true
+          "other_monitored_limit_detected": false
         },
         "database": {
           "mean_cpu_pct": 14.7,
@@ -3628,7 +3637,7 @@
           "cpu_pct_per_tps": 0.294,
           "cpu_bound_ceiling_tps": 272.1,
           "other_limits_seen": [],
-          "cpu_is_limiting": null
+          "other_monitored_limit_detected": null
         }
       }
     }

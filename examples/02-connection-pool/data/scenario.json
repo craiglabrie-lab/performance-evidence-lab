@@ -46,6 +46,11 @@
       44
     ],
     "iteration": "search x2, add_to_cart x1, checkout x1",
+    "transactions": [
+      "search",
+      "add_to_cart",
+      "checkout"
+    ],
     "pacing": "fixed, one iteration every 20s per user",
     "think_time_s": 3,
     "expected_tps_at_steady": 100.0

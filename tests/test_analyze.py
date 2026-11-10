@@ -102,7 +102,7 @@ def test_capacity_uses_utilization_law():
     app1 = cap["app1"]
     assert abs(app1["cpu_pct_per_tps"] * app1["tps_handled"] - app1["mean_cpu_pct"]) < 0.2
     assert abs(app1["cpu_bound_ceiling_tps"] - 80 / app1["cpu_pct_per_tps"]) < 0.2
-    assert app1["cpu_is_limiting"] and app1["other_limits_seen"] == []
+    assert app1["other_monitored_limit_detected"] is False and app1["other_limits_seen"] == []
 
 
 def test_graphs_are_written(tmp_path):
@@ -291,5 +291,123 @@ def test_baseline_not_comparable_when_design_differs(tmp_path):
 
 def test_cpu_ceiling_flags_other_limits():
     cap = analyze.analyze(S2)["capacity"]["windows"]["min 19-39"]["app1"]
-    assert cap["cpu_is_limiting"] is False
+    assert cap["other_monitored_limit_detected"] is True
     assert any("connection pool" in x for x in cap["other_limits_seen"])
+
+
+# ---------------------------------------------------------------- data-quality boundaries (second external review)
+def tx_rows(data):
+    return list(csv.DictReader((data / "transactions.csv").open()))
+
+
+def write_tx(data, rows):
+    with (data / "transactions.csv").open("w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=rows[0].keys())
+        w.writeheader()
+        w.writerows(rows)
+
+
+def test_exact_duplicate_rows_are_counted_once(tmp_path):
+    data = copy_run(tmp_path, S0)
+    before = analyze.analyze(data)["sla_results"]["slas"]["SLA-2"]["per_minute"][20]["value"]
+    rows = tx_rows(data)
+    dup = next(r for r in rows if r["elapsed_min"] == "20" and r["generator"] == "LG1" and r["transaction"] == "search")
+    write_tx(data, rows + [dict(dup)])
+    f = analyze.analyze(data)
+    assert f["sla_results"]["slas"]["SLA-2"]["per_minute"][20]["value"] == before
+    assert any("exact duplicate" in c["message"] for c in f["input_checks"])
+
+
+def test_conflicting_duplicate_rows_become_missing_never_pass(tmp_path):
+    data = copy_run(tmp_path, S0)
+    rows = tx_rows(data)
+    dup = dict(next(r for r in rows if r["elapsed_min"] == "20" and r["generator"] == "LG1" and r["transaction"] == "search"))
+    dup["count"] = str(int(dup["count"]) + 500)
+    dup["passed"] = str(int(dup["passed"]) + 500)
+    write_tx(data, rows + [dup])
+    f = analyze.analyze(data)
+    slas = f["sla_results"]["slas"]
+    assert any("conflicting rows" in c["message"] for c in f["input_checks"])
+    assert slas["SLA-2"]["per_minute"][20]["result"] == "Not evaluated"
+    assert slas["SLA-2"]["result"] == "Not evaluated"
+
+
+def test_missing_transaction_type_is_not_evaluated(tmp_path):
+    data = copy_run(tmp_path, S0)
+    rewrite_csv(data / "transactions.csv",
+                keep=lambda r: not (r["elapsed_min"] == "25" and r["generator"] == "LG1" and r["transaction"] == "checkout"))
+    f = analyze.analyze(data)
+    slas = f["sla_results"]["slas"]
+    assert slas["SLA-2"]["per_minute"][25]["result"] == "Not evaluated"
+    assert "LG1/checkout" in slas["SLA-2"]["per_minute"][25]["missing"]
+    assert slas["SLA-2"]["result"] == "Not evaluated"
+    assert slas["SLA-3"]["result"] == "Not evaluated"  # window: minute incomplete and summary no longer matches
+
+
+def test_window_counts_reconciled_with_run_summary(tmp_path):
+    data = copy_run(tmp_path, S0)
+    rows = list(csv.DictReader((data / "transaction_summary.csv").open()))
+    rows[0]["count"] = str(int(rows[0]["count"]) + 1)
+    with (data / "transaction_summary.csv").open("w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=rows[0].keys())
+        w.writeheader()
+        w.writerows(rows)
+    f = analyze.analyze(data)
+    assert f["sla_results"]["summary_mismatches"]
+    assert f["sla_results"]["slas"]["SLA-3"]["result"] == "Not evaluated"
+    assert "does not match" in analyze.to_markdown(f)
+
+
+def test_threshold_compared_at_full_precision(tmp_path):
+    data = copy_run(tmp_path, S0)
+    rows = tx_rows(data)
+    minute = [r for r in rows if r["elapsed_min"] == "20"]
+    total = sum(int(r["count"]) for r in minute)
+    target = 5399  # 89.983 TPS: rounds to 90.0, but is below a >= 90 threshold
+    biggest = max(minute, key=lambda r: int(r["count"]))
+    delta = total - target
+    biggest["count"] = str(int(biggest["count"]) - delta)
+    biggest["passed"] = str(int(biggest["passed"]) - delta)
+    write_tx(data, rows)
+    e = analyze.analyze(data)["sla_results"]["slas"]["SLA-2"]["per_minute"][20]
+    assert e["value"] == 89.98 and e["result"] == "Fail"
+
+
+def test_error_rate_compared_at_full_precision(tmp_path):
+    data = copy_run(tmp_path, S0)
+    edit_slas(data, lambda s: s[2].update(evaluation="per_minute"))
+    rows = tx_rows(data)
+    minute = [r for r in rows if r["elapsed_min"] == "20"]
+    total = sum(int(r["count"]) for r in minute)
+    want_failed = int(total * 0.01004) + 1  # just above 1%, would round to 1.0
+    r0 = minute[0]
+    extra = want_failed - sum(int(r["failed"]) for r in minute)
+    r0["failed"] = str(int(r0["failed"]) + extra)
+    r0["passed"] = str(int(r0["passed"]) - extra)
+    r0["failed_content_check"] = str(int(r0["failed_content_check"]) + extra)
+    write_tx(data, rows)
+    e = analyze.analyze(data)["sla_results"]["slas"]["SLA-3"]["per_minute"][20]
+    assert 100 * want_failed / total > 1.0 and e["result"] == "Fail"
+
+
+def test_malformed_trace_values_do_not_crash(tmp_path):
+    data = copy_run(tmp_path)
+    rewrite_csv(data / "checkout_traces.csv",
+                change=lambda r: {**r, "payment_call_ms": "n/a"} if r["trace_id"] == "T200" else r)
+    f = analyze.analyze(data)
+    w = f["traces"]["min 19-39"]
+    assert w["traces_with_missing_values"] == 1 and w["payment_share_of_connection_hold_pct"] > 90
+
+
+def test_nan_and_infinite_values_are_missing(tmp_path):
+    data = copy_run(tmp_path, S0)
+    rewrite_csv(data / "transactions.csv",
+                change=lambda r: {**r, "p95_s": "NaN"} if r["elapsed_min"] == "15" and r["generator"] == "LG1"
+                and r["transaction"] == "checkout" else
+                ({**r, "p95_s": "inf"} if r["elapsed_min"] == "16" and r["generator"] == "LG2"
+                 and r["transaction"] == "checkout" else r))
+    slas = analyze.analyze(data)["sla_results"]["slas"]
+    assert analyze.num("NaN") is None and analyze.num("-inf") is None
+    assert slas["SLA-1"]["per_minute"][15]["result"] == "Not evaluated"
+    assert slas["SLA-1"]["per_minute"][16]["result"] == "Not evaluated"
+    assert slas["SLA-1"]["result"] == "Not evaluated"

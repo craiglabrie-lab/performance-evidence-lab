@@ -69,10 +69,12 @@ def load_csv(path: Path) -> list[dict]:
 
 
 def num(value):
+    """A finite float, or None. NaN, infinity, blanks and text are all treated as missing."""
     try:
-        return float(value)
+        v = float(value)
     except (TypeError, ValueError):
         return None
+    return v if math.isfinite(v) else None
 
 
 class InputError(ValueError):
@@ -93,6 +95,37 @@ REQUIRED_COLUMNS = {
 }
 COUNT_COLUMNS = {"count", "passed", "failed", "failed_timeout", "failed_http_5xx", "failed_content_check",
                  "scheduled_vusers", "running_vusers", "exited_with_error"}
+
+
+def record_key(r: dict) -> tuple:
+    """Identity of one record: an event ID if the file has one, otherwise minute + entity + transaction."""
+    if r.get("trace_id"):
+        return ("trace", r["trace_id"])
+    return (r.get("elapsed_min"), entity_of(r), r.get("transaction"))
+
+
+def resolve_duplicates(name: str, rows: list[dict], issues: list[dict]) -> list[dict]:
+    """Exact duplicates are dropped (one copy kept). Conflicting duplicates are all dropped,
+    so the measurement becomes missing instead of being counted twice or guessed."""
+    groups = defaultdict(list)
+    for r in rows:
+        groups[record_key(r)].append(r)
+    out = []
+    for key, grp in groups.items():
+        if len(grp) == 1:
+            out.append(grp[0])
+            continue
+        payload = {tuple(sorted((k, v) for k, v in r.items() if not k.startswith("_"))) for r in grp}
+        lines = ", ".join(str(r["_line"]) for r in grp)
+        label = f"{key[1]}" if key[0] == "trace" else f"minute {key[0]}, {key[1]}" + (f", {key[2]}" if key[2] else "")
+        if len(payload) == 1:
+            out.append(grp[0])
+            issues.append({"level": "warning", "file": name, "line": None,
+                           "message": f"exact duplicate rows for {label} (lines {lines}); counted once"})
+        else:
+            issues.append({"level": "warning", "file": name, "line": None,
+                           "message": f"conflicting rows for {label} (lines {lines}); all treated as missing"})
+    return sorted(out, key=lambda r: r["_line"])
 
 
 def validate_scenario(scenario: dict) -> list[str]:
@@ -162,13 +195,9 @@ def clean_rows(name: str, rows: list[dict], start: datetime, issues: list[dict])
                 issues.append({"level": "warning", "file": name, "line": i,
                                "message": f"non-numeric {c} '{v}'; treated as missing"})
                 r[c] = ""
-        key = (r.get("elapsed_min"), entity_of(r), r.get("transaction"), r.get("trace_id"))
-        if key in seen:
-            issues.append({"level": "warning", "file": name, "line": i,
-                           "message": f"duplicate row for minute {key[0]}, {key[1]}"
-                                      + (f", {key[2]}" if key[2] else "")})
-        seen.add(key)
+        r["_line"] = i
         keep.append(r)
+    keep = resolve_duplicates(name, keep, issues)
     if mismatched:
         lines = ", ".join(str(m[0]) for m in mismatched[:5]) + (" ..." if len(mismatched) > 5 else "")
         issues.append({"level": "warning", "file": name, "line": None,
@@ -302,6 +331,27 @@ def sla_problem(sla: dict, tables: dict) -> str | None:
     return None
 
 
+def reconcile_with_summary(rows: list[dict], data_dir: Path, lo: int, hi: int) -> list[str]:
+    """Compare steady-state per-minute counts with the run-level transaction summary, if present."""
+    summary = transaction_summary(data_dir)
+    if not summary:
+        return []
+    totals = defaultdict(lambda: [0, 0])
+    for r in rows:
+        if lo <= int(r["elapsed_min"]) <= hi:
+            for g in (r["generator"], "ALL"):
+                totals[(g, r["transaction"])][0] += int(r["count"])
+                totals[(g, r["transaction"])][1] += int(r["failed"])
+    out = []
+    for s in summary:
+        got = totals.get((s["generator"], s["transaction"]), [0, 0])
+        want = [num(s.get("count")), num(s.get("failed"))]
+        if want[0] is None or got[0] != want[0] or (want[1] is not None and got[1] != want[1]):
+            out.append(f"{s['generator']}/{s['transaction']}: per-minute count {got[0]}, failed {got[1]}; "
+                       f"summary count {s.get('count')}, failed {s.get('failed')}")
+    return out
+
+
 def criteria(scenario: dict, tables: dict, wl: dict, data_dir: Path | None = None) -> dict:
     """Evaluate every SLA in scenario.json. Thresholds come from the SLA definitions, never from code.
 
@@ -311,9 +361,12 @@ def criteria(scenario: dict, tables: dict, wl: dict, data_dir: Path | None = Non
     lo, hi = scenario["workload_model"]["steady_state_min"]
     generators = sorted(g for g in scenario["workload_model"].get("users", {}) if g != "total")
     rows = tables.get("transactions.csv", [])
+    expected_tx = scenario["workload_model"].get("transactions") or sorted({r["transaction"] for r in rows
+                                                                            if lo <= int(r["elapsed_min"]) <= hi})
     by_min = defaultdict(list)
     for r in rows:
         by_min[int(r["elapsed_min"])].append(r)
+    mismatches = reconcile_with_summary(rows, data_dir, lo, hi) if data_dir else []
     out = {}
     for sla in scenario.get("slas", []):
         res = {"definition": sla, "per_minute": {}, "window_value": None, "reason": ""}
@@ -329,6 +382,9 @@ def criteria(scenario: dict, tables: dict, wl: dict, data_dir: Path | None = Non
             mrows = by_min.get(m, [])
             gens_present = {r["generator"] for r in mrows}
             missing_gens = [g for g in generators if g not in gens_present]
+            pairs = {(r["generator"], r["transaction"]) for r in mrows}
+            missing_pairs = [f"{g}/{t}" for g in generators for t in expected_tx
+                             if g in gens_present and (g, t) not in pairs]
             if kind == "response_time":
                 vals, results = {}, []
                 for g in generators or sorted(gens_present):
@@ -341,16 +397,18 @@ def criteria(scenario: dict, tables: dict, wl: dict, data_dir: Path | None = Non
                 count = sum(int(r["count"]) for r in mrows)
                 failed = sum(int(r["failed"]) for r in mrows)
                 if kind == "throughput":
-                    v = round(count / 60, 1) if mrows else None
+                    v = count / 60 if mrows else None
                 else:
-                    v = round(100 * failed / count, 2) if count else None
-                if v is None or missing_gens:
-                    result = FAIL if (v is not None and not ok(v)) else NOT_EVALUATED
+                    v = 100 * failed / count if count else None
+                # Compare at full precision; round only for display. Any incomplete minute is Not evaluated:
+                # a missing load generator or transaction type biases both throughput and error rate.
+                if v is None or missing_gens or missing_pairs:
+                    result = NOT_EVALUATED
                 else:
                     result = PASS if ok(v) else FAIL
-                entry = {"value": v, "result": result}
-            if missing_gens:
-                entry["missing"] = missing_gens
+                entry = {"value": None if v is None else round(v, 2), "result": result}
+            if missing_gens or missing_pairs:
+                entry["missing"] = missing_gens + missing_pairs
             res["per_minute"][m] = entry
             minute_results.append(entry["result"])
         if mode in ("per_minute", "per_minute_per_generator"):
@@ -372,14 +430,17 @@ def criteria(scenario: dict, tables: dict, wl: dict, data_dir: Path | None = Non
                 steady = [r for m in range(lo, hi + 1) for r in by_min.get(m, [])]
                 count = sum(int(r["count"]) for r in steady)
                 failed = sum(int(r["failed"]) for r in steady)
-                v = (round(count / 60 / (hi - lo + 1), 1) if kind == "throughput" else
-                     round(100 * failed / count, 2) if count else None)
-            res["window_value"] = v
+                v = (count / 60 / (hi - lo + 1) if kind == "throughput" else
+                     100 * failed / count if count else None)
+            res["window_value"] = None if v is None else round(v, 2)
             if v is None:
                 res["result"] = NOT_EVALUATED
             elif incomplete and kind != "response_time":
-                res["result"] = FAIL if not ok(v) else NOT_EVALUATED
+                res["result"] = NOT_EVALUATED
                 res["reason"] = f"data missing for minutes {incomplete}"
+            elif mismatches and kind != "response_time":
+                res["result"] = NOT_EVALUATED
+                res["reason"] = "per-minute counts do not match the run-level summary: " + "; ".join(mismatches[:3])
             else:
                 res["result"] = PASS if ok(v) else FAIL
         else:
@@ -391,6 +452,7 @@ def criteria(scenario: dict, tables: dict, wl: dict, data_dir: Path | None = Non
     total = sum(int(r["count"]) for r in steady_tx)
     failed = sum(int(r["failed"]) for r in steady_tx)
     return {"steady_state_min": [lo, hi], "slas": out, "failing_minutes": fails,
+            "expected_transactions": expected_tx, "summary_mismatches": mismatches,
             "steady_error_rate_pct": round(100 * failed / total, 2) if total else None,
             "first_failing_minute": min((m for ms in fails.values() for m in ms), default=None),
             "note": "Calculated from the data only; the Test Execution Analyst decides whether the run is valid "
@@ -446,15 +508,17 @@ def traces(tables: dict, windows) -> dict | None:
         if not rs:
             continue
         def med(c):
-            return round(statistics.median(float(r[c]) for r in rs), 0)
-        held = [float(r["db_connection_held_ms"]) for r in rs]
-        pay = [float(r["payment_call_ms"]) for r in rs]
+            vals = [v for v in (num(r.get(c)) for r in rs) if v is not None]
+            return round(statistics.median(vals), 0) if vals else None
+        both = [(num(r.get("payment_call_ms")), num(r.get("db_connection_held_ms"))) for r in rs]
+        both = [(p, h) for p, h in both if p is not None and h is not None]
+        pay, held = [p for p, _ in both], [h for _, h in both]
         out[f"min {lo}-{hi}"] = {
-            "traces": len(rs),
+            "traces": len(rs), "traces_with_missing_values": len(rs) - len(both),
             "median_total_ms": med("total_ms"), "median_pool_wait_ms": med("pool_wait_ms"),
             "median_sql_ms": med("sql_ms"), "median_payment_call_ms": med("payment_call_ms"),
             "median_connection_held_ms": med("db_connection_held_ms"),
-            "payment_share_of_connection_hold_pct": round(100 * sum(pay) / sum(held), 1),
+            "payment_share_of_connection_hold_pct": round(100 * sum(pay) / sum(held), 1) if sum(held) else None,
         }
     return out
 
@@ -628,7 +692,7 @@ def capacity(tables: dict, windows) -> dict:
                 res[node] = {"mean_cpu_pct": round(u, 1), "tps_handled": round(share, 1),
                              "cpu_pct_per_tps": round(d, 3), "cpu_bound_ceiling_tps": round(80 / d, 1),
                              "other_limits_seen": limits,
-                             "cpu_is_limiting": not limits}
+                             "other_monitored_limit_detected": bool(limits)}
         cpus = [v for v in (num(r.get("cpu_pct")) for r in tables.get("database.csv", [])
                             if lo <= int(r["elapsed_min"]) <= hi) if v is not None]
         if cpus:
@@ -636,7 +700,7 @@ def capacity(tables: dict, windows) -> dict:
             d = u / x
             res["database"] = {"mean_cpu_pct": round(u, 1), "tps_handled": round(x, 1),
                                "cpu_pct_per_tps": round(d, 3), "cpu_bound_ceiling_tps": round(80 / d, 1),
-                               "other_limits_seen": [], "cpu_is_limiting": None}
+                               "other_limits_seen": [], "other_monitored_limit_detected": None}
         out["windows"][f"min {lo}-{hi}"] = res
     return out
 
@@ -660,15 +724,22 @@ def baseline_comparison(data_dir: Path, scenario: dict, tables: dict) -> dict | 
     for r in cur:
         if r["generator"] != "ALL":
             continue
-        br = bmap[("ALL", r["transaction"])]
+        br = bmap.get(("ALL", r["transaction"]))
+        if br is None:
+            rows.append({"transaction": r["transaction"], "missing_in_baseline": True, "regression": None,
+                         "slower_than_threshold": None})
+            continue
         row = {"transaction": r["transaction"]}
         for c in ("avg_s", "p90_s", "p95_s", "p99_s"):
-            bv, cv = float(br[c]), float(r[c])
-            row[c] = {"baseline": bv, "current": cv, "change_pct": round(100 * (cv - bv) / bv, 1)}
-        row["error_pct"] = {"baseline": float(br["error_pct"]), "current": float(r["error_pct"])}
-        slower = row["p90_s"]["change_pct"] > thr or row["p95_s"]["change_pct"] > thr
+            bv, cv = num(br.get(c)), num(r.get(c))
+            change = round(100 * (cv - bv) / bv, 1) if bv and cv is not None else None
+            row[c] = {"baseline": bv, "current": cv, "change_pct": change}
+        row["error_pct"] = {"baseline": num(br.get("error_pct")), "current": num(r.get("error_pct"))}
+        changes = [row[c]["change_pct"] for c in ("p90_s", "p95_s")]
+        slower = None if None in changes else any(ch > thr for ch in changes)
         row["slower_than_threshold"] = slower
-        row["regression"] = slower if not reasons else None
+        row["slower_than_threshold"] = slower
+        row["regression"] = slower if not reasons and slower is not None else None
         rows.append(row)
     return {"run_id": b["run_id"], "build": b.get("build"), "available": True, "threshold_pct": thr,
             "comparable": not reasons, "not_comparable_because": reasons,
@@ -934,7 +1005,12 @@ def overview_markdown(f: dict, charts=None) -> list[str]:
               "| Transaction | Avg (base → now) | p90 (base → now) | p95 (base → now) | p99 (base → now) | Error % (base → now) | Regression |",
               "| --- | --- | --- | --- | --- | --- | --- |"]
         for r in bc["transactions"]:
-            cells = [f"{r[c]['baseline']} → {r[c]['current']} ({r[c]['change_pct']:+}%)" for c in ("avg_s", "p90_s", "p95_s", "p99_s")]
+            if r.get("missing_in_baseline"):
+                L.append(f"| {r['transaction']} | not in baseline | | | | | n/a |")
+                continue
+            cells = [f"{r[c]['baseline']} → {r[c]['current']} "
+                     + (f"({r[c]['change_pct']:+}%)" if r[c]['change_pct'] is not None else "(no data)")
+                     for c in ("avg_s", "p90_s", "p95_s", "p99_s")]
             L.append(f"| {r['transaction']} | " + " | ".join(cells) +
                      f" | {r['error_pct']['baseline']} → {r['error_pct']['current']} | "
                      f"{('YES' if r['regression'] else 'no') if r['regression'] is not None else 'n/a (not comparable)'} |")
@@ -952,13 +1028,16 @@ def overview_markdown(f: dict, charts=None) -> list[str]:
         L += ["## Capacity: CPU-bound throughput ceiling (conditional estimate)", "",
               "Utilization Law (U = X × D): CPU % per transaction/s, and the throughput each tier would reach at 80% "
               "CPU **if CPU were the only limit**. This is not the tier's capacity. When another resource is "
-              f"saturated, it limits throughput first. {cap['assumptions']}", "",
+              f"saturated, it limits throughput first. \"No other monitored limit detected\" does not prove CPU is "
+              "the limit: unmonitored resources such as external APIs, the network or locks can still cap "
+              f"throughput. {cap['assumptions']}", "",
               "| Window | Tier | Mean CPU % | TPS handled | CPU % per TPS | CPU-bound ceiling (TPS) | Other limits seen |",
               "| --- | --- | --- | --- | --- | --- | --- |"]
         for w, tiers in cap["windows"].items():
             for tier, v in tiers.items():
                 other = "; ".join(v["other_limits_seen"]) if v["other_limits_seen"] else (
-                    "none seen" if v["cpu_is_limiting"] is not None else "not checked")
+                    "no other monitored limit detected" if v["other_monitored_limit_detected"] is not None
+                    else "not checked")
                 if v["other_limits_seen"]:
                     other = f"**{other}: CPU is not the limiting resource; ceiling does not apply**"
                 L.append(f"| {w} | {tier} | {v['mean_cpu_pct']} | {v['tps_handled']} | {v['cpu_pct_per_tps']} | "
@@ -972,7 +1051,9 @@ def to_markdown(f: dict, charts=None) -> str:
          f"Generated by `{f['generated_by']}`. Every number here is calculated from the raw data files.", "",
          f"**Test objective:** {f['test_objective']}", "", f"**Windows:** {', '.join(f['windows'])} — {f['window_rule']}", ""]
     L += overview_markdown(f, charts)
-    checks = f.get("input_checks") or []
+    checks = list(f.get("input_checks") or [])
+    checks += [{"level": "warning", "file": "transaction_summary.csv", "line": None,
+                "message": "does not match per-minute data: " + m} for m in f["sla_results"].get("summary_mismatches", [])]
     L += ["## Input checks", ""]
     if checks:
         L += ["Problems found while loading the data. Rows with problems are treated as missing, never as zero.", "",
