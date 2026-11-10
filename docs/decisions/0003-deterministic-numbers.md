@@ -1,9 +1,9 @@
-# ADR-0003 — Arithmetic is done by code
+# ADR-0003: Calculations are done by deterministic tooling
 
-**Decision:** A deterministic script, [`tools/analyze.py`](../../tools/analyze.py), produces a fact sheet before any agent runs. Agents state numbers only from the fact sheet, the raw files, or a calculation they ran and showed.
+**Decision:** [`tools/analyze.py`](../../tools/analyze.py) produces a computed results summary before any agent runs. Agents use numbers only from that summary, the raw data files, or a calculation they ran and showed.
 
-**Why:** Language models are fluent with numbers and unreliable at arithmetic. A review is only as good as its numbers. Code also enforces rules that are easy to forget: time zones are normalised, gaps are listed rather than filled, and percentiles are never averaged.
+**Why:** Language models write fluently about numbers and are unreliable at arithmetic. An analysis is only as good as its numbers. Code also enforces rules that are easy to forget: convert time zones to UTC, list monitoring gaps instead of filling them, and never average percentiles.
 
-**Consequences:** The fact sheet is shared by every agent and by the single-prompt baseline, so comparisons isolate the effect of the team rather than of the tooling. The tool is standard-library Python with tests.
+**Consequences:** Every agent and the single-prompt baseline work from the same computed results summary, so a comparison measures the agent workflow, not the tooling. The tool uses only the Python standard library and has tests.
 
-**Revisit when:** a new data source needs metrics the tool does not compute.
+**Revisit when:** a new data source needs metrics the tool does not calculate.

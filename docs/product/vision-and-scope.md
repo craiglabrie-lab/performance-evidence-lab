@@ -2,47 +2,47 @@
 
 ## The problem
 
-A load test produces a lot of evidence: transaction results, virtual-user counts, load-generator health, application, database and network metrics, logs. Reviewing it well takes an experienced engineer, because the important questions are not in any single file:
+A load test produces a lot of data: transaction response times, Vuser counts, load generator health, and application, database and network metrics, plus logs. Analyzing it well takes an experienced performance engineer, because the answers that matter are not in any single file:
 
-- Did the test actually produce the load we intended, or did the harness fail?
-- Which symptom came first, and on which generator, node or transaction?
-- Is the database slow, or is everyone waiting to reach it?
-- How sure are we, and what would prove us wrong?
+- Did the test achieve its load profile, or did the test harness fail?
+- Which degradation started first, and on which load generator, node or transaction?
+- Is the database slow, or are requests queuing for a database connection?
+- How confident is the root cause, and what retest would confirm it?
 
-AI can now read all of that evidence in seconds and write a fluent report. Fluent is not the same as right. The typical failure is a confident root cause from a test that never reached its load, or a "probable database issue" that the database's own metrics contradict.
+AI can read all of that data in seconds and write a polished report. A polished report is not the same as a correct one. Typical mistakes are a confident root cause from a test that never reached its load profile, or "probable database contention" that the database's own metrics contradict.
 
-## The idea
+## The approach
 
-Encode the review discipline an experienced performance team uses, and run it as a team of AI agents with distinct seats:
+Build the analysis practice of an experienced performance team into an agentic workflow:
 
-- one agent owns the evidence and its quality;
-- one decides whether the test is trustworthy, before anyone diagnoses anything;
-- specialists for the application, database and infrastructure each implicate or rule out their own layer with evidence;
-- a Devil's Advocate forms its own view first, then challenges the team;
-- the Test Lead rules on every objection and owns the decision;
-- the arithmetic is done by code, not by the agents.
+- the Performance Test Lead orchestrates the analysis and issues the go/no-go recommendation;
+- one agent inventories the test data and monitoring, aligns the clocks and lists the gaps;
+- one agent checks test validity before any bottleneck analysis;
+- application, database and infrastructure engineers each identify their tier as the bottleneck or eliminate it with its own metrics;
+- a Peer Reviewer reviews the data first, then the team's findings;
+- deterministic tooling does every calculation.
 
-## Who it is for
+## Audience
 
 | Reader | What they get |
 | --- | --- |
-| Performance engineers | A review that shows its working: every claim traced to evidence, alternatives considered, a rerun plan |
-| Application, database and infrastructure teams | Precise symptom windows and either a hypothesis for their layer or a clear, evidenced "not you" |
-| Release and engineering leaders | A five-line summary that says whether the test can be trusted, what failed, and what to do next |
+| Performance engineers | An analysis that ties every finding to its data, considers the alternatives and ends with a retest plan |
+| Application, database and infrastructure teams | Precise degradation windows, and either a bottleneck hypothesis for their tier or a clear elimination backed by metrics |
+| Release and engineering leaders | A five-line executive summary: is the test valid, which SLAs failed, and the go/no-go recommendation |
 
 ## In scope
 
-- Offline review of one load-test run's exported results.
-- Two synthetic demonstration scenarios with recorded runs and a predeclared answer key.
-- A deterministic fact-sheet tool and its tests.
-- A portable single-prompt version of the method for teams without an agent runtime.
+- Offline analysis of one test run's exported results.
+- Two synthetic test runs with an answer key written in advance.
+- Deterministic tooling for the computed results summary, with tests.
+- A portable single-prompt version of the workflow for teams without an agent runtime.
 
 ## Out of scope
 
-- Launching load, changing systems, or creating tickets. The team reads evidence and recommends.
-- Live integrations with load-testing or APM tools. A future adapter would produce the same fact sheet from real exports.
-- Claims about real-world accuracy or time saved. Those need real, authorised data.
+- Running load tests, changing systems or opening tickets. The agents analyze results and recommend.
+- Live integration with load testing or APM tools. A future adapter would produce the same computed results summary from real exports.
+- Accuracy or time-saved figures for production results. Those need real, authorized data.
 
-## What success looks like
+## Success
 
-On each scenario the team should reach the expected verdict, find the expected mechanisms, avoid the planted traps, and produce a report a release manager can act on from the first paragraph. The [results](../../evaluation/results.md) record how the recorded runs did against that standard, and how a single well-prompted assistant did on the same data.
+On each test run the agent team should reach the expected test validity result and SLA results, identify the expected bottleneck, eliminate the misleading signals, and produce a test summary a release manager can act on from the executive summary alone. The [evaluation](../../evaluation/README.md) records how recorded runs score against that, and how a single AI assistant scores on the same data.

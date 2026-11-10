@@ -1,6 +1,6 @@
 {
   "synthetic": false,
-  "note": "Describe one run. Keep real results outside public repositories.",
+  "note": "Describe one test run. Keep real results out of public repositories.",
   "run": {
     "project": "",
     "environment": "",
@@ -10,8 +10,8 @@
     "duration_min": 0,
     "previous_run": ""
   },
-  "question": "",
-  "intended_workload": {
+  "test_objective": "",
+  "workload_model": {
     "users": {
       "LG1": 0,
       "LG2": 0,
@@ -31,7 +31,7 @@
     "think_time_s": 0,
     "expected_tps_at_steady": 0
   },
-  "acceptance_criteria": [
+  "slas": [
     {
       "id": "",
       "metric": "",

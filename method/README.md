@@ -1,23 +1,23 @@
-# The method
+# Analysis workflow
 
-This is the review discipline the agent team follows. It is written so a person can apply it by hand. The agents are one way to run it, not the only way.
+The steps an experienced performance team follows when it analyzes load test results. The agents run this workflow, and a performance engineer can follow it by hand.
 
 ## Seven stages
 
-| Stage | Question | Owner | Output |
+| Stage | What gets answered | Agent | Output |
 | --- | --- | --- | --- |
-| 1. Frame | What exactly are we being asked, and against which criteria? | Test Lead | Plan |
-| 2. Gather | What evidence do we have, and can we trust it? | Results Librarian | Evidence register |
-| 3. Validate | Did the test run as designed, and which conclusions can it support? | Test Validity Reviewer | Validity decision (the gate) |
-| 4. Measure | What happened, when, and did it meet the criteria? | Performance Analyst | Observations, health verdicts, symptom windows |
-| 5. Diagnose | Which mechanism explains the symptoms, and what rules the others out? | App, Database and Infrastructure specialists | Hypotheses with evidence grades |
-| 6. Challenge | Which conclusions go further than the evidence? | Devil's Advocate | Objections |
-| 7. Decide and report | What do we conclude, and what happens next? | Test Lead, then Report Writer | Decision record and report |
+| 1. Test planning review | What is the test objective, which SLAs apply, and which tiers need a bottleneck review? | Performance Test Lead | Analysis plan |
+| 2. Data collection & time alignment | Do we have the right run, complete monitoring and aligned clocks? | Test Data & Monitoring Analyst | Data inventory and gap list |
+| 3. Test validity check | Did the test achieve its load profile with healthy load generators? What are the results usable for? | Test Validity Analyst | Test validity result |
+| 4. Results analysis | What happened, when did degradation start, and did each SLA pass? | Performance Analyst | Observations, SLA results, degradation windows |
+| 5. Bottleneck analysis | Which tier is the bottleneck, and which tiers are eliminated? | Application & APM, Database, Infrastructure & Network engineers | Bottleneck hypotheses |
+| 6. Peer review | Which findings go further than the data supports? | Peer Reviewer | Review comments |
+| 7. Test summary & go/no-go | What do we conclude, and what is the retest or tuning plan? | Performance Test Lead, then Report Author | Go/no-go recommendation and test summary |
 
-Stage 3 is a gate. If the test did not produce the intended workload, stages 4 to 7 continue on a restricted path: report what is trustworthy, explain what went wrong with the test, and plan the rerun. They never produce a capacity verdict the test cannot support.
+The test validity check comes before results analysis. If the test did not achieve its load profile, the rest of the workflow still runs, but it reports what the run is usable for, explains what went wrong with the test, and plans the retest. It never issues a capacity result the test cannot support.
 
 ## Read next
 
-- [Four judgments](judgments.md) — validity, health, evidence grade and confidence, and why they stay separate.
-- [Rules](rules.md) — the twelve rules every agent follows.
-- [Records](records.md) — the IDs and formats that connect evidence to conclusions.
+- [Test summary results](test-summary-results.md): test validity, SLA results, root-cause status and confidence.
+- [Analysis rules](rules.md): the twelve rules every agent follows.
+- [Records](records.md): the IDs that link each finding to its data.

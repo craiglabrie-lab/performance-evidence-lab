@@ -1,10 +1,10 @@
 # Contributing
 
-Ideas, issues and pull requests are welcome.
+Issues and pull requests are welcome. Follow the [style guide](docs/style-guide.md).
 
-- **New scenarios** are the most useful contribution: a synthetic run with a clear question, a realistic cause, a trap or two, and an answer key written before any review runs.
-- **Role changes** should explain which recorded behaviour they fix. Adding or merging a seat needs a decision record in `docs/decisions/`.
-- **Tool changes** need tests. The fact-sheet tool must keep its rules: no averaged percentiles, gaps listed rather than filled, time normalised to UTC.
-- **Data**: synthetic only. Do not commit real results, even with names removed.
+- **New synthetic test runs** are the most useful contribution: a clear test objective, a realistic bottleneck, one or two misleading signals, and an answer key written before any analysis runs.
+- **Agent role changes** should explain which recorded behavior they fix. Adding, removing or merging an agent needs an architecture decision record in `docs/decisions/`.
+- **Tool changes** need tests. `tools/analyze.py` must keep its rules: never average percentiles, list monitoring gaps instead of filling them, and convert time to UTC.
+- **Test data** must be synthetic. Do not commit real results, even with names removed.
 
 Original materials are under the [MIT License](LICENSE).

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Generate the two synthetic demo scenarios used by Performance Evidence Lab.
+"""Generate the two synthetic test runs used by Performance Evidence Lab.
 
 Everything this script writes is invented. The numbers are shaped to behave
-like real load-test exports so the agent team has something realistic to
-reason about, but no real system, company, or test is represented.
+like real load-test exports so the agent workflow has realistic results
+to analyze, but no real system, company, or test is represented.
 
 Usage:
     python tools/generate_synthetic.py            # writes examples/*/data/
@@ -78,7 +78,7 @@ BASE_RT = {"search": 0.60, "add_to_cart": 0.40, "checkout": 0.85}
 def scenario_checkout_generator(out: Path) -> None:
     """SYN-RUN-001: LG2 runs with extended logging and saturates its own CPU.
 
-    The application is healthy; the harness is not. A scheduled database batch
+    The application is healthy; the test harness is not. A scheduled database batch
     job produces a brief, unrelated lock-wait spike later in the run.
     """
     rng = random.Random(1001)
@@ -112,12 +112,15 @@ def scenario_checkout_generator(out: Path) -> None:
                     min(99, 92 + rng.uniform(0, 6.5))
                 if m > STEADY[1]:
                     cpu = max(15, cpu - (m - STEADY[1]) * 12)
-                mem = 46 + 30 * load + (12 if m >= 16 else 0)
+                    # Client-side timing inflation eases as LG2's CPU recovers.
+                    factor = 1 + 2.4 * max(0.0, (cpu - 60) / 38)
+                    rts = {k: v * factor for k, v in BASE_RT.items()}
+                mem = 46 + 30 * load + (12 if m >= 16 else 0) + 0.1 * m + rng.uniform(-1.5, 1.5)
                 errs = 0 if m < 17 else int(rng.uniform(140, 260) if m <= 22 else rng.uniform(8, 25))
             else:
                 load = running / USERS_PER_GEN
                 cpu = 18 + 40 * load + rng.uniform(-2, 2)
-                mem = 40 + 18 * load
+                mem = 40 + 18 * load + 0.05 * m + rng.uniform(-1.5, 1.5)
                 errs = 0 if rng.random() > 0.15 else 1
             if 30 <= m <= 33 and gen == "LG1":
                 rts = dict(rts, checkout=rts["checkout"] * 1.35)
@@ -145,7 +148,7 @@ def scenario_checkout_generator(out: Path) -> None:
                    int(rng.uniform(2, 9) if not batch else rng.uniform(700, 980)),
                    "row lock contention" if batch else "CPU",
                    ])
-        lb.append([iso(start + timedelta(minutes=m)), m, "lb1", int(total_tps * 3.1 + rng.uniform(-5, 5)),
+        lb.append([iso(start + timedelta(minutes=m)), m, "lb1", max(0, int(total_tps * 3.1 + rng.uniform(-5, 5))),
                    f"{total_tps * 0.42 + rng.uniform(-1, 1):.1f}", f"{rng.uniform(0.01, 0.04):.2f}"])
     # generator log excerpt
     t = start + timedelta(minutes=17, seconds=4)
@@ -212,7 +215,7 @@ def scenario_checkout_pool(out: Path) -> None:
             load = target / USERS_PER_GEN
             vus.append([iso(start + timedelta(minutes=m)), m, gen, target, target, 0])
             lgs.append([iso(start + timedelta(minutes=m)), m, gen, f"{14 + 30 * load + rng.uniform(-2, 2):.1f}",
-                        f"{38 + 16 * load:.1f}", 0 if not degraded else int(rng.uniform(0, 3)), "standard"])
+                        f"{38 + 16 * load + 0.05 * m + rng.uniform(-1.5, 1.5):.1f}", 0 if not degraded else int(rng.uniform(0, 3)), "standard"])
         for node in ("app1", "app2"):
             share = total_tps / 2
             gc_heavy = node == "app1" and m >= 27 and degraded
@@ -232,7 +235,7 @@ def scenario_checkout_pool(out: Path) -> None:
                    sessions, f"{11 + rng.uniform(-1, 1.5) + (9 if batch else 0):.1f}",
                    int(rng.uniform(2, 9) if not batch else rng.uniform(650, 940)),
                    "row lock contention" if batch else ("idle in transaction" if degraded and m >= 20 else "CPU")])
-        lb.append([iso(start + timedelta(minutes=m)), m, "lb1", int(target * 2 * 0.62 + rng.uniform(-5, 5)),
+        lb.append([iso(start + timedelta(minutes=m)), m, "lb1", max(0, int(target * 2 * 0.62 + rng.uniform(-5, 5))),
                    f"{total_tps * 0.42 + rng.uniform(-1, 1):.1f}", f"{rng.uniform(0.01, 0.04):.2f}"])
         calls = sum(int(r[5]) for r in tx if r[2] == m and r[4] == "checkout")
         pay.append([iso(start + timedelta(minutes=m)), m, "payment-sandbox", calls, int(pay_ms),
@@ -296,9 +299,9 @@ def manifest(out, run_id, start, lg2_logging, sources, notes, previous_run=None)
         "run": {"project": "SYN-SHOP", "environment": "PERF-A", "tool": "generic load tool export",
                 "run_id": run_id, "start_utc": iso(start), "duration_min": MINUTES,
                 "previous_run": previous_run},
-        "question": "Can the checkout journey support 500 concurrent users at 90+ transactions/second "
+        "test_objective": "Can the checkout journey support 500 concurrent users at 90+ transactions/second "
                     "with checkout p95 at or under 2.0 seconds?",
-        "intended_workload": {
+        "workload_model": {
             "users": {"LG1": USERS_PER_GEN, "LG2": USERS_PER_GEN, "total": 2 * USERS_PER_GEN},
             "ramp_up_min": [0, 9], "steady_state_min": list(STEADY), "ramp_down_min": [40, 44],
             "iteration": "search x2, add_to_cart x1, checkout x1",
@@ -306,7 +309,7 @@ def manifest(out, run_id, start, lg2_logging, sources, notes, previous_run=None)
             "think_time_s": THINK_S,
             "expected_tps_at_steady": round(2 * USERS_PER_GEN / PACING_S * 4, 1),
         },
-        "acceptance_criteria": [
+        "slas": [
             {"id": "SLA-1", "metric": "checkout p95 response time", "threshold": "<= 2.0 s",
              "scope": "each steady-state minute, each generator"},
             {"id": "SLA-2", "metric": "total throughput", "threshold": ">= 90 transactions/s",

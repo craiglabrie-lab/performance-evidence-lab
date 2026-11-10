@@ -1,10 +1,10 @@
-# Recommendation — template
+# Recommendation: template
 
 - **ID / priority:**
-- **Type:** test fix · diagnostic experiment · system change
-- **Linked findings and evidence:**
-- **Owner (proposed team is fine):**
-- **Action or experiment:**
-- **Success measure and threshold:**
-- **Result that would prove the hypothesis wrong:**
+- **Type:** test fix · monitoring · tuning · retest
+- **Findings and data it is based on:**
+- **Owner (a proposed team is fine):**
+- **Action or retest:**
+- **Success metric and threshold:**
+- **Result that would show the hypothesis is wrong:**
 - **Prerequisites and risks:**

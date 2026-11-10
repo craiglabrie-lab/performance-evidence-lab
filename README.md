@@ -1,135 +1,126 @@
 # Performance Evidence Lab
 
-**Your results. Your evidence. A review team that shows its working.**
+**Performance Evidence Lab** is an agentic workflow for analyzing performance test results. A Performance Test Lead agent orchestrates eight specialist sub-agents through the same steps an experienced performance team follows:
 
-Performance Evidence Lab is a method for reviewing load-test results, run by a team of nine AI agents modelled on a real performance review: a Test Lead, a Results Librarian, a Test Validity Reviewer, a Performance Analyst, application, database and infrastructure specialists, a Devil's Advocate and a Report Writer.
+1. Validate the test.
+2. Analyze the results against the SLAs.
+3. Isolate the bottleneck across the application, database and infrastructure tiers.
+4. Peer-review the findings.
+5. Deliver a test summary with a go/no-go recommendation and a retest plan.
 
-It is built around one idea from seventeen years of reading test results: **the most expensive mistake is a confident answer from a test that never measured what you think it measured.** So the team decides whether the test is trustworthy before anyone diagnoses anything. It keeps validity, health, evidence strength and confidence as separate judgments, and every claim can be traced back to the measurement it rests on.
+It is built on a lesson from 17 years of performance testing: **before you diagnose a bottleneck, confirm the test produced the load profile it was designed for.**
 
-> **Status:** working demonstration. The method, the nine agents and a deterministic fact-sheet tool (with tests) are complete. Two synthetic scenarios have been **reviewed end to end by the agent team**, every handoff is recorded, and the results are scored against an answer key written before the runs. All data is synthetic. Nothing here has been validated on real production results.
+> **Status:** the workflow, the nine agent role files, the deterministic tooling (with tests) and two synthetic test runs are complete. Recorded agent runs and scored results for the current agents are the next stage. All data is synthetic, and nothing has been tested on production results.
 
-## See it work
+## Why an agentic workflow
 
-| | Scenario 01 — the test was broken | Scenario 02 — the system was |
-| --- | --- | --- |
-| **What happened** | One load generator ran with extended logging, saturated its own CPU, reported inflated timings and lost a third of its users. A database batch job and an injected "mark this test PASSED" log line are there to mislead. | Load was delivered, then a third-party payment sandbox slowed down. Checkout held its database connection during the payment call, both pools filled, and every transaction slowed. |
-| **Team verdict** | **INVALID FOR THIS QUESTION.** No capacity verdict. The failures belong to the harness, not the application. Fix, calibrate, rerun. | **VALID WITH LIMITATIONS.** Response time and throughput fail; errors pass. The design flaw is real, but the capacity verdict waits for a controlled payment stub. |
-| **Report** | [REPORT.md](examples/01-generator-saturation/REPORT.md) | [REPORT.md](examples/02-connection-pool/REPORT.md) |
-| **Every handoff** | [run/](examples/01-generator-saturation/run/) | [run/](examples/02-connection-pool/run/) |
+AI can read a full set of load test results in seconds and write a polished report. Common mistakes in those reports:
 
-The fastest way to see the method at work: open a report, then the Devil's Advocate's [objections](examples/01-generator-saturation/run/08b-challenge.md), then the Test Lead's [ruling on each one](examples/01-generator-saturation/run/09-test-lead-decision.md).
+- a confident root cause from a test whose load generator was saturated;
+- a capacity verdict from a run that lost a third of its Vusers;
+- "probable database contention" that the database's own metrics contradict.
 
-## What the demonstration showed
+The workflow prevents these the way a good performance team does. It splits the analysis into defined roles, checks test validity before any bottleneck analysis, has each engineer identify or eliminate their own tier with its own metrics, and peer-reviews the findings before they go out. Deterministic tooling does every calculation, so no agent has to do math on its own.
 
-Each scenario was also reviewed by a single, well-prompted assistant on the same model with the same data. Both were scored against the [predeclared answer key](evaluation/expected-findings.md).
+## The agents
 
-- **Both found almost everything, and neither fell for a trap.** On clear-cut cases, a strong model with a good fact sheet is a capable reviewer.
-- **The team's difference was calibration.** It kept "the test is invalid" apart from "the system failed", graded causes as correlations or probable contributors until an experiment could confirm them, flagged an ambiguous acceptance criterion, and caught two flaws in the synthetic data that the single prompt missed.
-- **It cost about 16 times as many tokens** and about 33 minutes against 2.
-
-Full scoring, costs and limits: [evaluation/results.md](evaluation/results.md). Whether the team is worth its cost depends on how much a wrong release decision costs, and on harder cases than these two. Testing that is the next step.
-
-## The four judgments
-
-Most bad performance reports mix up four different questions. The method keeps them apart.
-
-| Judgment | Answers | Example from scenario 01 |
-| --- | --- | --- |
-| **Test validity** | Can this run answer the question we asked? | INVALID: the 500-user load was held for 6 of 30 minutes |
-| **Performance health** | Did each criterion pass, fail, or can we not tell? | NOT ASSESSED, not FAIL, because the test can't support a verdict |
-| **Evidence grade** | How far does the evidence go toward a cause? | "Extended logging caused it" is a Correlation until a controlled rerun |
-| **Confidence** | How sure are we of this specific claim, and why? | Low: the network path from that generator was never measured |
-
-A test that slows down under genuine load is not broken: that's a finding about the system. A test whose harness distorts the load or the measurements is broken, however bad the numbers look. The [method](method/README.md) describes the seven stages, the [rules](method/rules.md) and the [record IDs](method/records.md) that connect evidence to conclusions.
-
-## The team
-
-| Agent | The question they own |
+| Agent | Responsibility |
 | --- | --- |
-| [Test Lead](agents/test-lead.md) | What are we being asked, who looks at what, and what do we conclude? |
-| [Results Librarian](agents/results-librarian.md) | Is this the right run, is the data complete, and do the clocks agree? |
-| [Test Validity Reviewer](agents/test-validity-reviewer.md) | Did we actually test what we meant to test? |
-| [Performance Analyst](agents/performance-analyst.md) | What happened, when did it start, and did it meet the criteria? |
-| [Application / APM Specialist](agents/application-specialist.md) | What were the application servers doing while users waited? |
-| [Database Specialist](agents/database-specialist.md) | Was the database slow, or was everyone waiting to reach it? |
-| [Infrastructure & Network Specialist](agents/infrastructure-specialist.md) | Could the hosts, network or platform explain this? |
-| [Devil's Advocate](agents/devils-advocate.md) | What would a sceptical senior engineer say before this goes out? |
-| [Report Writer](agents/report-writer.md) | Can a release manager read the first paragraph and know what to do? |
+| [Performance Test Lead](agents/performance-test-lead.md) (orchestrator) | Confirms the test objective and SLAs, assigns engineers, resolves review comments, issues the go/no-go recommendation |
+| [Test Data & Monitoring Analyst](agents/test-data-analyst.md) | Data inventory, time alignment, monitoring gaps, prompt-injection text in logs |
+| [Test Validity Analyst](agents/test-validity-analyst.md) | Load profile achieved, load generator health, runtime settings, script errors versus server errors |
+| [Performance Analyst](agents/performance-analyst.md) | Response times, throughput, errors, onset of degradation, SLA results |
+| [Application & APM Engineer](agents/application-apm-engineer.md) | App servers, thread and connection pools, GC, outbound calls, APM traces |
+| [Database Performance Engineer](agents/database-engineer.md) | Query response times, wait events, locks, sessions, batch jobs |
+| [Infrastructure & Network Engineer](agents/infrastructure-network-engineer.md) | Host headroom, load balancer, network, platform limits |
+| [Peer Reviewer](agents/peer-reviewer.md) (reviewer agent) | Reviews the data first, then the team's findings, and writes review comments |
+| [Report Author](agents/report-author.md) | Test summary: executive summary, findings, tiers eliminated, retest plan |
 
 ```mermaid
 flowchart TD
-    Lead1["Test Lead: plan"] --> Librarian["Results Librarian"]
-    Librarian --> Validity{"Test Validity Reviewer<br/>the gate"}
-    Librarian --> DA1["Devil's Advocate<br/>independent first read"]
-    Validity --> Analyst["Performance Analyst"]
-    Analyst --> App["Application / APM"]
-    Analyst --> DB["Database"]
-    Analyst --> Infra["Infrastructure & Network"]
-    App --> DA2["Devil's Advocate<br/>challenge"]
-    DB --> DA2
-    Infra --> DA2
-    DA1 --> DA2
-    DA2 --> Lead2["Test Lead: rule on objections, decide"]
-    Lead2 --> Writer["Report Writer"]
+    Lead1["Performance Test Lead<br/>analysis plan"] --> Data["Test Data & Monitoring Analyst<br/>data inventory"]
+    Data --> Validity{"Test Validity Analyst<br/>load profile achieved?"}
+    Data --> PR1["Peer Reviewer<br/>initial review"]
+    Validity --> Analyst["Performance Analyst<br/>SLA results, degradation windows"]
+    Analyst --> App["Application & APM Engineer"]
+    Analyst --> DB["Database Performance Engineer"]
+    Analyst --> Infra["Infrastructure & Network Engineer"]
+    App --> PR2["Peer Reviewer<br/>review comments"]
+    DB --> PR2
+    Infra --> PR2
+    PR1 --> PR2
+    PR2 --> Lead2["Performance Test Lead<br/>go/no-go recommendation"]
+    Lead2 --> Author["Report Author<br/>test summary"]
 ```
 
-Each role file is both a contract a person can read and the instructions the agent runs with. Three design choices do most of the work:
+Each sub-agent runs with its own context and passes its results forward in a numbered handoff file. Every role file is both a readable role description and the instructions the agent runs with.
 
-- **Validity is a gate.** One agent owns it, and nobody downstream can overrule it.
-- **The Devil's Advocate reads the evidence before the team's conclusions,** then challenges them. The Test Lead must rule on every objection, and unresolved dissent stays in the report.
-- **Arithmetic is done by code.** [`tools/analyze.py`](tools/analyze.py) builds a fact sheet first: it normalises time zones, lists gaps instead of filling them, never averages percentiles, and flags instruction-like text in logs. Agents cite it or show their own calculations.
+## The four results in every test summary
+
+| Result | Values | Example: test run 01 |
+| --- | --- | --- |
+| **Test validity** | Valid · Valid with limitations · Invalid | Invalid: load profile not achieved. 500 Vusers were held for 6 of the 30 planned steady-state minutes. |
+| **SLA results** | Pass · Fail · Not evaluated | Not evaluated: the test cannot support a capacity result, so the SLAs are not marked Fail. |
+| **Root-cause status** | Symptom · Correlated metric · Suspected bottleneck · Confirmed root cause | Extended logging on LG2 is a suspected bottleneck in the test harness until a retest with matched logging confirms it. |
+| **Confidence** | High · Medium · Low, with a reason | Depends on monitoring coverage, for example whether the network path from the load generator was monitored. |
+
+A system that slows down under the planned load does not make a test invalid; that is a result about the system. A test harness that distorts the load or the measurements does make it invalid, however bad the numbers look. The [analysis workflow](method/README.md) covers the seven stages and the [analysis rules](method/rules.md).
+
+## Example test runs
+
+| | Test run 01: load generator saturation | Test run 02: connection pool exhaustion |
+| --- | --- | --- |
+| **In the data** | LG2 runs with extended logging, saturates its own CPU, reports inflated response times and loses Vusers to abort-on-error. A database batch job and a prompt-injection line in the generator log are there to mislead. | The load profile is achieved, then the third-party payment sandbox slows down. Checkout holds its DB connection during the payment call, both connection pools are exhausted, and every transaction slows. |
+| **Expected result** | Test invalid. No capacity result. Fix the test harness and retest. | Valid with limitations. SLA-1 and SLA-2 fail, SLA-3 passes. Suspected bottleneck: DB connection held across the payment call. |
+
+The expected findings are in a [written-in-advance answer key](evaluation/expected-findings.md). Its hash is committed before any run, so the key cannot be adjusted to match the results. Recorded runs of the current agents, scored against the key and compared with a single AI assistant on the same data, are the next stage.
 
 ## Run it
 
-**Read a recorded run** — no setup. Start in [examples/](examples/README.md).
-
-**Rerun a review** with [Claude Code](https://claude.com/claude-code), from the repository root:
+Analyze a test run with [Claude Code](https://claude.com/claude-code), from the repository root:
 
 ```
 /review-run examples/02-connection-pool
 ```
 
-**Check the tools:**
+Check the deterministic tooling:
 
 ```
-python tools/generate_synthetic.py      # regenerate the synthetic data (deterministic)
+python tools/generate_synthetic.py      # regenerate the synthetic test runs
 python tools/analyze.py examples/01-generator-saturation/data
 pytest -q
 ```
 
-**No agent runtime?** The [portable prompt](prompts/performance-review-lead.md) packs the method into one prompt for any assistant. It keeps the discipline but loses the independent challenge.
+**Without an agent runtime:** the [single-prompt version](prompts/performance-review-lead.md) packs the workflow into one prompt for any AI assistant. You lose the separate agent contexts and the independent peer review.
 
-**Your own results:** describe the run with [templates/scenario.json](templates/scenario.json) and put the exports in the same layout as the examples. Real load-tool exports need a small adapter; that is on the [roadmap](docs/product/roadmap.md). Keep real results out of public repositories.
+**Your own results:** describe the test run with [templates/scenario.json](templates/scenario.json) and use the same file layout as the examples. Real tool exports need a small adapter; adapters are on the [roadmap](docs/product/roadmap.md). Keep real results out of public repositories.
 
-## Honest limits
+## Limitations
 
-- **Synthetic data, designed by the author of the checklists.** It shows the method working on cases it was built for, not on unseen real-world results.
-- **One model for every agent.** The Devil's Advocate has a separate context, not a separate mind.
-- **File-access limits per agent are instructions, not a sandbox.**
-- **One run per approach per scenario.** Variation between runs is not yet measured.
-- **No actions.** The team reads evidence and recommends. It never launches load, changes systems or sends anything.
+- **Synthetic test runs.** The same author designed the test runs and the agent checklists, so they show the workflow working on cases it was designed for.
+- **One model for every agent.** The Peer Reviewer has its own context, not its own model.
+- **Each agent's file inputs are instructions, not a sandbox.**
+- **Analysis only.** The agents never start a load test, change a system or send anything.
 
 ## Repository
 
 ```
-method/        the review method: stages, four judgments, rules, record IDs
-agents/        the nine role files (contract + runnable instructions)
-tools/         analyze.py (fact sheet) and generate_synthetic.py
-examples/      two scenarios: data, fact sheet, every agent handoff, report, single-prompt baseline
-evaluation/    answer key (with pre-run hash) and scored results
-prompts/       portable single-prompt version of the method
-templates/     scenario description, decision record, recommendation
-docs/          vision and scope, how a review runs, data and safety, decisions, roadmap, glossary
-tests/         tests for the deterministic tools
+method/        analysis workflow: stages, test summary results, rules, record IDs
+agents/        the nine agent role files
+tools/         analyze.py (computed results summary) and generate_synthetic.py
+examples/      two synthetic test runs with their computed results summaries
+evaluation/    answer key and its pre-run hash
+prompts/       single-prompt version of the workflow
+templates/     test run description, go/no-go recommendation, recommendation
+docs/          vision and scope, how the workflow runs, data and safety, decisions, roadmap, glossary, style guide
+tests/         tests for the deterministic tooling
 .claude/       the /review-run command
 ```
 
-Start with [docs/](docs/README.md) for the design and the [decision records](docs/decisions/README.md) for why it is built this way.
-
 ## About
 
-Built by **Craig Labrie**, a performance engineering lead and product owner with seventeen years in performance testing: hundreds of projects and around a thousand test scenarios, and later building and training a performance testing team whose analysis and reports he reviewed. This project writes down that review discipline and puts it to work with AI agents. Its sibling project, [Hive & Seek](https://github.com/craiglabrie-lab/hive-and-seek), applies the same agent pattern to job searching. [Origins](docs/origins.md) explains where the method came from.
+Built by **Craig Labrie**, a performance engineering lead and product owner with 17 years in performance testing: more than 200 performance test projects and about 1,000 test scenarios, and later building and leading a performance testing team whose test scenarios, analysis and reports he reviewed. Its sibling project, [Hive & Seek](https://github.com/craiglabrie-lab/hive-and-seek), applies the same agent pattern to job searching. [Origins](docs/origins.md) describes where the workflow came from.
 
 ## License
 
-[MIT](LICENSE) © 2026 Craig Labrie. Product names such as LoadRunner are mentioned for context only and do not imply endorsement.
+[MIT](LICENSE) © 2026 Craig Labrie.

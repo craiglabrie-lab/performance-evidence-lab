@@ -10,8 +10,8 @@
     "duration_min": 45,
     "previous_run": "SYN-RUN-001"
   },
-  "question": "Can the checkout journey support 500 concurrent users at 90+ transactions/second with checkout p95 at or under 2.0 seconds?",
-  "intended_workload": {
+  "test_objective": "Can the checkout journey support 500 concurrent users at 90+ transactions/second with checkout p95 at or under 2.0 seconds?",
+  "workload_model": {
     "users": {
       "LG1": 250,
       "LG2": 250,
@@ -34,7 +34,7 @@
     "think_time_s": 3,
     "expected_tps_at_steady": 100.0
   },
-  "acceptance_criteria": [
+  "slas": [
     {
       "id": "SLA-1",
       "metric": "checkout p95 response time",

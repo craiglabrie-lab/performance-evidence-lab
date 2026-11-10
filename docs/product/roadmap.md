@@ -1,13 +1,13 @@
 # Roadmap
 
-| Stage | Outcome | State |
+| Stage | Outcome | Status |
 | --- | --- | --- |
-| Method and team | Method, nine role files, deterministic fact sheet, tests | Done |
-| Demonstration | Two synthetic scenarios, recorded team runs, single-prompt baseline, scored against a predeclared answer key | Done |
-| Repeatability | Run each scenario several times; report how much conclusions vary between runs | Next |
-| Harder scenarios | Cases with no clear cause, conflicting evidence, a valid run that passes, missing monitoring for the guilty layer | Next |
-| Real exports | Adapters that turn a real load-tool export (for example LoadRunner Enterprise or JMeter) and APM data into the same fact sheet | Planned |
-| Model mix and cost | Try cheaper models for routine seats and a different model for the Devil's Advocate; measure quality against cost | Planned |
-| Held-out evaluation | Authorised, anonymised real reviews scored by an experienced engineer | Needs data access |
+| Workflow and agents | Analysis workflow, nine agent role files, deterministic tooling with tests, style guide | Done |
+| Recorded example runs | Both synthetic test runs analyzed by the agent team, every handoff recorded, scored against the answer key, and compared with a single-prompt baseline | Next |
+| Repeatability | Several runs per test run, to measure how much the findings vary | Planned |
+| Harder test runs | No single clear bottleneck, conflicting metrics, a valid run that passes every SLA, a monitoring gap on the tier that is the bottleneck | Planned |
+| Real result exports | Adapters that convert load testing tool exports and APM data into the same computed results summary | Planned |
+| Model mix and cost | Smaller models for routine agents and a different model for the Peer Reviewer, with quality measured against cost | Planned |
+| Independent evaluation | Authorized, anonymized real results analyzed and scored by an experienced performance engineer | Needs data access |
 
-Each stage keeps the same rule: claims about the method are backed by recorded runs, not by description.
+Every statement about how well the workflow performs is backed by recorded runs.

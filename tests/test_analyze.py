@@ -1,7 +1,7 @@
 """Checks that the deterministic layer keeps the method's rules.
 
 These test the arithmetic and evidence-handling tools, not the agents'
-judgment. Agent behaviour is shown in the recorded runs under examples/.
+judgment.
 """
 import filecmp
 import sys
@@ -32,7 +32,7 @@ def test_fixtures_are_reproducible(tmp_path):
 
 
 def test_percentiles_are_never_averaged():
-    facts = analyze.analyse(S1)
+    facts = analyze.analyze(S1)
     for windows in facts["summaries"].values():
         for groups in windows.values():
             for stats in groups.values():
@@ -41,36 +41,36 @@ def test_percentiles_are_never_averaged():
                         assert set(value) == {"median_of_minute_values", "max_minute_value"}
 
 
-def test_local_database_time_is_normalised_to_utc():
-    facts = analyze.analyse(S1)
+def test_local_database_time_is_normalized_to_utc():
+    facts = analyze.analyze(S1)
     db = inv(facts, "database.csv")
     assert db["range_utc"][0] == "2026-10-01T10:00:00Z"
-    assert "converted to UTC" in db["normalisation"]
+    assert "converted to UTC" in db["normalization"]
 
 
 def test_monitoring_gap_is_reported_not_filled():
-    facts = analyze.analyse(S1)
+    facts = analyze.analyze(S1)
     assert inv(facts, "app_servers.csv")["missing_minutes"] == {"app2": [26, 27, 28]}
     window = facts["summaries"]["app_servers.csv"]["min 16-39"]
     assert window["app2"]["minutes_present"] == window["app1"]["minutes_present"] - 3
 
 
-def test_instruction_like_log_lines_are_flagged():
-    flagged = inv(analyze.analyse(S1), "generator_errors.log")["untrusted_instruction_like_lines"]
+def test_prompt_injection_log_lines_are_flagged():
+    flagged = inv(analyze.analyze(S1), "generator_errors.log")["prompt_injection_lines"]
     assert len(flagged) == 1 and "ignore your previous instructions" in flagged[0]
 
 
-def test_acceptance_onset_and_workload_shortfall():
-    s1, s2 = analyze.analyse(S1), analyze.analyse(S2)
-    assert s1["acceptance"]["first_failing_minute"] == 16
-    assert s2["acceptance"]["first_failing_minute"] == 19
-    late = [m for m in s1["workload"]["minutes"] if 23 <= m["elapsed_min"] <= 39]
+def test_sla_onset_and_load_profile_shortfall():
+    s1, s2 = analyze.analyze(S1), analyze.analyze(S2)
+    assert s1["sla_results"]["first_failing_minute"] == 16
+    assert s2["sla_results"]["first_failing_minute"] == 19
+    late = [m for m in s1["load_profile"]["minutes"] if 23 <= m["elapsed_min"] <= 39]
     assert all(m["running_vusers"] < m["scheduled_vusers"] for m in late)
-    late2 = [m for m in s2["workload"]["minutes"] if 23 <= m["elapsed_min"] <= 39]
+    late2 = [m for m in s2["load_profile"]["minutes"] if 23 <= m["elapsed_min"] <= 39]
     assert all(m["running_vusers"] == m["scheduled_vusers"] for m in late2)
 
 
 def test_trace_breakdown_shows_connection_held_during_payment_call():
-    traces = analyze.analyse(S2)["traces"]
+    traces = analyze.analyze(S2)["traces"]
     assert traces["min 19-39"]["payment_share_of_connection_hold_pct"] > 90
     assert traces["min 10-18"]["median_pool_wait_ms"] == 0

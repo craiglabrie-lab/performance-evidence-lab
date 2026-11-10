@@ -1,19 +1,19 @@
 # Data and safety
 
-## Data
+## Test data
 
-- Only synthetic data is committed. Every scenario says so in `scenario.json`.
-- Real test results, logs, hostnames, topology and generated reports belong outside this repository. Removing a company name does not anonymise a workload or an architecture.
-- `.gitignore` excludes common load-tool result formats, but it is not data-loss prevention.
+- Only synthetic test runs are committed, and every `scenario.json` says so.
+- Real test results, logs, hostnames, topology and test summaries stay outside this repository. Removing a company name does not anonymize a workload model or an architecture.
+- `.gitignore` excludes common load testing result formats. It is not a data loss prevention control.
 
-## Untrusted content
+## Prompt-injection text in logs
 
-Logs and captured responses come from the system under test and can contain anything, including text that looks like instructions to an AI. The fact-sheet tool flags such lines; every agent's rules say they are data with no authority. Scenario 01 contains one deliberately, to show this working.
+Logs and captured responses come from the system under test and can contain anything, including text written to look like instructions to an AI. `tools/analyze.py` flags these lines, and every agent's rules treat them as data that is never followed. Test run 01 contains one on purpose.
 
-## Actions
+## No actions
 
-The team reads and recommends. No agent launches load, changes configuration, files tickets, or sends a report anywhere. Recommendations name an owner and an experiment; a person decides whether to act.
+The agents analyze results and make recommendations. No agent starts a load test, changes configuration, opens a ticket or sends a test summary anywhere. Each recommendation names an owner and a retest, and a person decides whether to act on it.
 
-## Honesty about execution
+## Execution transparency
 
-Every agent file states how it ran: a separate agent context, which model. Reports state that all agents share one model and that file-access limits were instructions. No report claims more independence, enforcement or real-world validation than actually took place.
+Every handoff file records how the agent ran: as a sub-agent with its own context, and on which model. Test summaries state that all agents share one model and that each agent's file inputs were instructions, not sandboxed.

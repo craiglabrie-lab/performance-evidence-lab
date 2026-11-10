@@ -1,14 +1,12 @@
-# Decisions
-
-Short records of the choices that shape the project, why they were made, and when to revisit them.
+# Architecture decision records
 
 | ADR | Decision | Status |
 | --- | --- | --- |
-| [0001](0001-methodology-first.md) | The method is the product; the agent team is its reference implementation | Accepted |
-| [0002](0002-nine-seat-review-team.md) | Nine agents, modelled on a real performance review team | Accepted |
-| [0003](0003-deterministic-numbers.md) | Arithmetic is done by code, not by agents | Accepted |
-| [0004](0004-validity-gate.md) | Test validity is a gate decided before diagnosis | Accepted |
-| [0005](0005-independent-challenge.md) | The Devil's Advocate reads the evidence before the team's conclusions | Accepted |
-| [0006](0006-reference-runtime.md) | Claude Code subagents as the reference runtime | Accepted |
-| [0007](0007-synthetic-demonstration.md) | Demonstrate on synthetic scenarios with a predeclared answer key | Accepted |
+| [0001](0001-workflow-first.md) | The analysis workflow is the product; the agents are its reference implementation | Accepted |
+| [0002](0002-nine-agent-team.md) | Nine agents, modeled on a performance test team | Accepted |
+| [0003](0003-deterministic-numbers.md) | Calculations are done by deterministic tooling, not by agents | Accepted |
+| [0004](0004-test-validity-first.md) | Test validity is checked before bottleneck analysis | Accepted |
+| [0005](0005-peer-review.md) | The Peer Reviewer reviews the data before the team's findings | Accepted |
+| [0006](0006-reference-runtime.md) | Claude Code sub-agents as the reference runtime | Accepted |
+| [0007](0007-synthetic-test-runs.md) | Synthetic test runs with an answer key written in advance | Accepted |
 | [0008](0008-mit-license.md) | MIT License for original materials | Accepted |

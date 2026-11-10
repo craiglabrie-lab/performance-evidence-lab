@@ -1,37 +1,37 @@
 # Records
 
-Agents connect their work through short IDs. Any reader can follow a conclusion back to the measurement it rests on.
+Agents link their work through short record IDs, so every finding in the test summary can be traced to the data it is based on.
 
 | Prefix | Record | Created by | Example |
 | --- | --- | --- | --- |
-| E- | Evidence item: a file, or a specific slice of one | Results Librarian | E-04 `load_generators.csv`, LG2, minutes 16–39 |
-| DQ- | Data-quality issue | Results Librarian | DQ-01 app2 metrics missing for minutes 26–28 |
-| VAL- | Validity decision | Test Validity Reviewer | VAL-1 INVALID FOR THIS QUESTION |
-| OBS- | Observation: a measured statement with a window | Performance Analyst, specialists | OBS-03 LG2 checkout p95 5.6 s at minute 16 |
-| SW- | Symptom window handed to specialists | Performance Analyst | SW-1 minutes 16–39 |
-| HYP- | Hypothesis: a proposed mechanism with grade and confidence | Specialists | HYP-APP-1 connection held across payment call |
-| CRIT- | Objection | Devil's Advocate | CRIT-2 database ruled out without query-level evidence |
-| F- | Finding: an accepted conclusion | Test Lead | F-1 LG2 saturation distorted the workload |
-| REC- | Recommendation | Test Lead | REC-1 set LG2 log level to standard and rerun |
-| DEC- | Decision record | Test Lead | DEC-1 defer the capacity verdict |
+| DATA- | Data inventory item: a file, or a slice of one | Test Data & Monitoring Analyst | DATA-04 `load_generators.csv`, LG2, minutes 16–39 |
+| GAP- | Data or monitoring gap | Test Data & Monitoring Analyst | GAP-01 app2 metrics missing for minutes 26–28 |
+| VAL- | Test validity result | Test Validity Analyst | VAL-1 Invalid: load profile not achieved |
+| OBS- | Observation: a measured result with its time window | Performance Analyst, engineers | OBS-03 LG2 checkout p95 5.6 s at minute 16 |
+| DW- | Degradation window handed to the engineers | Performance Analyst | DW-1 minutes 19–39, all transactions |
+| HYP- | Bottleneck hypothesis with root-cause status and confidence | Engineers | HYP-APP-1 DB connection held during the payment call |
+| RC- | Review comment | Peer Reviewer | RC-2 database eliminated without query-level metrics |
+| F- | Finding | Performance Test Lead | F-1 LG2 saturation distorted the load profile |
+| REC- | Recommendation | Performance Test Lead | REC-1 set LG2 logging to standard and retest |
+| GNG- | Go/no-go recommendation | Performance Test Lead | GNG-1 no capacity sign-off; retest after harness fix |
 
-## What each claim carries
+## What every finding includes
 
-- **Claim** in one sentence.
-- **Window** (elapsed minutes) and scope (generator, node, transaction).
-- **Evidence** as E-, OBS- or DQ- IDs.
-- **Grade and confidence**, for anything beyond an Observed Fact.
-- **Alternatives** considered, and why they were kept or set aside.
+- **The finding** in one sentence.
+- **Time window** (elapsed minutes) and where it applies: load generator, node, transaction.
+- **Record IDs** for the data: DATA-, OBS-, GAP-.
+- **Root-cause status and confidence**, for anything beyond a measured symptom.
+- **Alternatives** considered, and why each was eliminated or kept open.
 
 ## Handoff files
 
-Each agent writes one Markdown file into the run folder, numbered in the order they ran. Every file starts with a header block:
+Each agent writes one Markdown file into the run folder, numbered in the order the agents ran. Every file starts with this header:
 
 ```
 Agent: <role>
 Run: <run id>
-Read: <files this agent was given>
-Execution: separate agent context, model <name/version>
+Inputs: <files this agent was given>
+Execution: sub-agent with its own context, model <name/version>
 ```
 
-and ends with a **Handoff** section: what the next agent needs to know, and any open questions.
+Every file ends with a **Handoff** section: what the next agent needs to know, and any open questions.

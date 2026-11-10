@@ -1,13 +1,14 @@
 # Documentation
 
-| If you want to… | Read |
+| Topic | Document |
 | --- | --- |
-| Understand the problem, users and scope | [Vision and scope](product/vision-and-scope.md) |
-| Learn the review method | [Method](../method/README.md) |
-| Meet the agents | [Review team](../agents/README.md) |
-| See how a run is executed and recorded | [How a review runs](architecture/how-a-review-runs.md) |
-| Understand data handling and safety limits | [Data and safety](architecture/data-and-safety.md) |
-| See why things are the way they are | [Decisions](decisions/README.md) |
-| See what comes next | [Roadmap](product/roadmap.md) |
-| Look up a term | [Glossary](product/glossary.md) |
-| Understand where the method came from | [Origins](origins.md) |
+| Problem, audience and scope | [Vision and scope](product/vision-and-scope.md) |
+| The analysis workflow | [Workflow](../method/README.md) |
+| The agents | [Agents](../agents/README.md) |
+| How a run is executed and recorded | [How the workflow runs](architecture/how-the-workflow-runs.md) |
+| Test data handling and safety limits | [Data and safety](architecture/data-and-safety.md) |
+| Why it is built this way | [Architecture decision records](decisions/README.md) |
+| What comes next | [Roadmap](product/roadmap.md) |
+| Terms | [Glossary](product/glossary.md) |
+| Writing conventions | [Style guide](style-guide.md) |
+| Where the workflow came from | [Origins](origins.md) |
