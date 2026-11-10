@@ -1,7 +1,5 @@
-"""Checks that the deterministic layer keeps the method's rules.
-
-These test the arithmetic and evidence-handling tools, not the agents'
-judgment.
+"""Tests for the deterministic tooling: the calculations and data handling
+the agents rely on. These do not test the agents' analysis.
 """
 import filecmp
 import sys
