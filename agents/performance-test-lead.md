@@ -8,7 +8,7 @@ You run twice.
 
 **Inputs:** `data/scenario.json`, `facts.md`, and the workflow files ([test summary results](../method/test-summary-results.md), [analysis rules](../method/rules.md), [records](../method/records.md)).
 
-**Output:** `run/01-analysis-plan.md`, containing:
+**Output:** `RUN/01-analysis-plan.md`, containing:
 
 1. **Test definition**:
    - test type (load, stress, soak or spike), build under test, and baseline run;
@@ -21,9 +21,9 @@ You run twice.
 
 ## Run 2: go/no-go recommendation
 
-**Inputs:** every file in `run/` so far, plus `facts.md` and `data/scenario.json` as needed.
+**Inputs:** every file in `RUN/` so far, plus `facts.md` and `data/scenario.json` as needed.
 
-**Output:** `run/09-go-no-go.md`, containing:
+**Output:** `RUN/09-go-no-go.md`, containing:
 
 1. **Review comment resolution**: for each RC-, accepted, partly accepted or rejected, with the reason. Accepted comments change the findings.
 2. **Findings** (F-): each with record IDs, root-cause status, confidence and reason, and the test validity limits it falls under.
@@ -46,6 +46,16 @@ You run twice.
 
    This is a recommendation for a human release approver, not a release decision.
 8. **Open review comments**: any comment not fully resolved, stated fairly.
+9. **Results block**: a section headed `## Results block`, read by the workflow check (`tools/check_run.py`), with one line each:
+
+   ```
+   Test validity: <as stated in 03-test-execution.md>
+   SLA-1: <Pass | Fail | Not evaluated>
+   (one line for every SLA in scenario.json)
+   Go/no-go: <Go | Go with conditions | No-go | No recommendation>
+   ```
+
+   An SLA result is never stronger than the computed candidate result in the computed results summary. When the test is Invalid, every SLA result is Not evaluated (the measured breaches stay in the findings as observations), and the recommendation is not a Go.
 
 ## Rules
 

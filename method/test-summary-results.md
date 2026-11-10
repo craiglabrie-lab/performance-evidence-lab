@@ -23,6 +23,8 @@ Missing data never defaults to Valid. A system that slows down under the planned
 
 An SLA result needs a defined SLA, a time window and data. Use **Not evaluated** when any of them is missing, or when the test validity result does not support it. Missing data is never a Pass.
 
+`tools/analyze.py` computes a **candidate** result for each SLA from the data alone. The reported result can match the candidate or be Not evaluated, never stronger: a candidate Fail is never reported as Pass. When the test is **Invalid**, every SLA result is Not evaluated; the measured breaches are still reported, as observations. `tools/check_run.py` checks these rules in the go/no-go recommendation and the test summary.
+
 ## Root-cause status
 
 | Status | What it takes |

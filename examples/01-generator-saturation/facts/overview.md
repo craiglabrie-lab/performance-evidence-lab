@@ -55,7 +55,7 @@ From `transaction_summary.csv`, the load tool's run-level summary. Response time
 
 Compares this run with the baseline run. Baseline data is never used to fill gaps in this run. A transaction is flagged when p90 or p95 is more than 10% slower than the baseline.
 
-**Not comparable. Shown for context only, not a regression verdict:** planned load not running in this run for 23 steady-state minutes (first at minute 17).
+**Not comparable. Shown for context only, not a regression verdict:** planned load not running in this run for 23 steady-state minutes (first at minute 17: 475 running, 500 scheduled, 500 planned).
 
 Steady-state throughput: 75.4 TPS against 100.1 TPS in the baseline (-24.7%).
 
@@ -80,7 +80,7 @@ Steady-state throughput: 75.4 TPS against 100.1 TPS in the baseline (-24.7%).
 
 ## SLA results (steady state)
 
-Calculated from the data only; the Test Execution Analyst decides whether the run is valid enough to report these as SLA results. Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged. First minute any SLA failed: 16.
+**Candidate results, pending the test validity result.** Calculated from the data only; the Test Execution Analyst decides whether the run is valid enough to report these as SLA results. Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged. First minute any SLA failed: 16.
 
 | SLA | Metric | Threshold | Evaluation | Result | Minutes Pass / Fail / Not evaluated | Window value | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |

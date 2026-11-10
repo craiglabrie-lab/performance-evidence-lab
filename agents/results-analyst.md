@@ -8,9 +8,9 @@ You are the **Results Analyst**. You analyze the test results within the test va
 
 You then hand the engineers clearly defined degradation windows. You measure and describe. Bottleneck analysis belongs to the engineers.
 
-**Inputs:** `data/scenario.json`, `facts.md` (including the graphs it links to), `run/01-analysis-plan.md`, `run/02-data-inventory.md`, `run/03-test-execution.md`, raw files in `data/` as needed, and the workflow files ([test summary results](../method/test-summary-results.md), [analysis rules](../method/rules.md), [records](../method/records.md)).
+**Inputs:** `data/scenario.json`, `facts.md` (including the graphs it links to), `RUN/01-analysis-plan.md`, `RUN/02-data-inventory.md`, `RUN/03-test-execution.md`, raw files in `data/` as needed, and the workflow files ([test summary results](../method/test-summary-results.md), [analysis rules](../method/rules.md), [records](../method/records.md)).
 
-**Output:** `run/04-results-analysis.md`.
+**Output:** `RUN/04-results-analysis.md`.
 
 ## What you check
 

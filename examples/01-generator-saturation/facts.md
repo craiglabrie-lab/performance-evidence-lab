@@ -55,7 +55,7 @@ From `transaction_summary.csv`, the load tool's run-level summary. Response time
 
 Compares this run with the baseline run. Baseline data is never used to fill gaps in this run. A transaction is flagged when p90 or p95 is more than 10% slower than the baseline.
 
-**Not comparable. Shown for context only, not a regression verdict:** planned load not running in this run for 23 steady-state minutes (first at minute 17).
+**Not comparable. Shown for context only, not a regression verdict:** planned load not running in this run for 23 steady-state minutes (first at minute 17: 475 running, 500 scheduled, 500 planned).
 
 Steady-state throughput: 75.4 TPS against 100.1 TPS in the baseline (-24.7%).
 
@@ -91,11 +91,11 @@ Utilization Law (U = X × D): CPU % per transaction/s, and the throughput each t
 | min 10-15 | app2 | 54.6 | 50.1 | 1.091 | 73.3 | no other monitored limit detected |
 | min 10-15 | database | 30.0 | 100.2 | 0.3 | 267.0 | not checked |
 | min 16-39 | app1 | 40.6 | 34.6 | 1.173 | 68.2 | no other monitored limit detected |
-| min 16-39 | app2 | 41.0 | 34.6 | 1.185 | 67.5 | no other monitored limit detected |
+| min 16-39 | app2 | 41.0 | 34.8 | 1.177 | 68.0 | no other monitored limit detected |
 | min 16-39 | database | 25.5 | 69.2 | 0.369 | 217.1 | not checked |
-| min 40-44 | app1 | 23.4 | 19.7 | 1.184 | 67.6 | no other monitored limit detected |
-| min 40-44 | app2 | 22.9 | 19.7 | 1.16 | 69.0 | no other monitored limit detected |
-| min 40-44 | database | 13.4 | 39.5 | 0.34 | 235.4 | not checked |
+| min 40-44 | app1 | 27.4 | 19.7 | 1.387 | 57.7 | no other monitored limit detected |
+| min 40-44 | app2 | 27.1 | 19.7 | 1.372 | 58.3 | no other monitored limit detected |
+| min 40-44 | database | 15.6 | 39.5 | 0.396 | 202.2 | not checked |
 
 ## Input checks
 
@@ -173,7 +173,7 @@ Pacing: 20.0s. implied_cycle_s = running users / iterations per second (one chec
 
 ## SLA results (steady state)
 
-Calculated from the data only; the Test Execution Analyst decides whether the run is valid enough to report these as SLA results. Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged. First minute any SLA failed: 16.
+**Candidate results, pending the test validity result.** Calculated from the data only; the Test Execution Analyst decides whether the run is valid enough to report these as SLA results. Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged. First minute any SLA failed: 16.
 
 | SLA | Metric | Threshold | Evaluation | Result | Minutes Pass / Fail / Not evaluated | Window value | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |

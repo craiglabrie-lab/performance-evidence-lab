@@ -4,6 +4,8 @@ Nine agents, modeled on the people a performance team brings into a results anal
 
 Each file below is both the **role description** a person can read and the **instructions the agent runs with**. There is no separate prompt.
 
+`RUN/` in these files is the run folder the runner creates for each run (`<test run folder>/run-<UTC timestamp>/`). Handoff files go there, so files from an earlier or interrupted run are never mixed in.
+
 | Agent | Responsibility | Writes |
 | --- | --- | --- |
 | [Performance Test Lead](performance-test-lead.md) (orchestrator) | Confirms test type, objective and NFRs; assigns tier reviews; resolves review comments; issues the go/no-go recommendation for a human approver | `01-analysis-plan.md`, `09-go-no-go.md` |
@@ -14,7 +16,7 @@ Each file below is both the **role description** a person can read and the **ins
 | [Database Performance Engineer](database-engineer.md) | Query response times, wait events, locks, sessions, batch jobs, database headroom | `06-database.md` |
 | [Infrastructure & Network Engineer](infrastructure-network-engineer.md) | Host utilization and headroom, load balancer, network, platform limits | `07-infrastructure-network.md` |
 | [Peer Reviewer](peer-reviewer.md) (reviewer agent) | Senior review: forms a view from the data first, then writes review comments on the team's findings | `08a-initial-review.md`, `08b-peer-review.md` |
-| [Test Report Author](test-report-author.md) | Test summary report: executive summary, transaction summary, graphs, findings, retest plan, approval block | `TEST-SUMMARY.md` |
+| [Test Report Author](test-report-author.md) | Test summary report: executive summary, transaction summary, graphs, findings, retest plan, approval block | `RUN/TEST-SUMMARY.md` |
 
 ## Workflow
 

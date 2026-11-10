@@ -31,9 +31,9 @@ A test run folder containing `data/scenario.json` (run identity, test objective,
 | 6 | Peer Reviewer (initial review; runs alongside steps 3–5) | scenario, summary, data inventory only | `08a-initial-review.md` |
 | 7 | Peer Reviewer (peer review) | handoff files 03–07 and its own 08a | `08b-peer-review.md` |
 | 8 | Performance Test Lead (go/no-go) | everything | `09-go-no-go.md` |
-| 9 | Test Report Author | everything; the go/no-go file is the source of truth | `TEST-SUMMARY.md` |
+| 9 | Test Report Author | everything; the go/no-go file is the source of truth | `RUN/TEST-SUMMARY.md` |
 
-3. **Run log.** `run/run-log.md` records the model, the order the agents ran in, which steps ran in parallel, and tokens and time per step.
+3. **Run log.** `RUN/run-log.md` (in a fresh run folder for every run) records the model, the order the agents ran in, which steps ran in parallel, and tokens and time per step.
 
 ## Running it
 
@@ -50,8 +50,10 @@ The command is defined in [`.claude/commands/review-run.md`](../../.claude/comma
 | Control | How |
 | --- | --- |
 | Calculations | Done by code; agents cite the computed results summary or show their commands |
-| Test validity first | Agent instructions, checked by the Peer Reviewer and by the Test Report Author's report checks |
-| Tools per agent | Enforced: each sub-agent has a fixed tool list (read, search, Python, write). No web access, no launching other agents |
-| Each agent's file inputs | Instructions only; not sandboxed. Python can still read any file in the repository |
-| Peer Reviewer independence | Its own context, and it reviews the data before the team's findings; same model as the team |
+| Test validity first | Agent instructions, checked by the Peer Reviewer. Enforced in the Results block by `tools/check_run.py`: an Invalid test reports every SLA as Not evaluated and no Go |
+| SLA results | `tools/check_run.py`: a reported result is never stronger than the computed candidate result |
+| Handoffs | `tools/check_run.py`: a fresh run folder for every run; a step does not start if a handoff it needs is missing or older than the computed results |
+| Tools per agent | Enforced: each sub-agent has a fixed tool list (read, search, Bash, write). No web search or fetch tool and no launching other agents; Bash can still reach the network unless the host blocks it |
+| Each agent's file inputs, and keeping the answer key out | Instructions only; not sandboxed. Bash can read any file in the repository. Enforce with host sandboxing and permission rules before using sensitive results |
+| Peer Reviewer independence | Its own context, and its initial review is written before it sees the team's findings; it shares the filesystem and the model family with the team |
 | Cost and time | Recorded per step; no limits beyond the runtime's own |

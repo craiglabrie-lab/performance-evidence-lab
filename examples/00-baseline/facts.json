@@ -797,6 +797,7 @@
     "littles_law_note": "implied_cycle_s = running users / iterations per second (one checkout per iteration). With fixed pacing it should equal the pacing interval; a larger value means iterations are running late (responses + think time exceed pacing)."
   },
   "sla_results": {
+    "status": "candidate results, pending the test validity result",
     "steady_state_min": [
       10,
       39
@@ -3377,7 +3378,8 @@
       "p95_s": "1.01",
       "p99_s": "1.28",
       "max_s": "2.21",
-      "std_dev_s": "0.22"
+      "std_dev_s": "0.22",
+      "_line": 2
     },
     {
       "steady_state_min": "10-39",
@@ -3393,7 +3395,8 @@
       "p95_s": "0.67",
       "p99_s": "0.86",
       "max_s": "1.68",
-      "std_dev_s": "0.15"
+      "std_dev_s": "0.15",
+      "_line": 3
     },
     {
       "steady_state_min": "10-39",
@@ -3409,7 +3412,8 @@
       "p95_s": "1.42",
       "p99_s": "1.82",
       "max_s": "3.60",
-      "std_dev_s": "0.31"
+      "std_dev_s": "0.31",
+      "_line": 4
     },
     {
       "steady_state_min": "10-39",
@@ -3425,7 +3429,8 @@
       "p95_s": "1.01",
       "p99_s": "1.28",
       "max_s": "2.50",
-      "std_dev_s": "0.22"
+      "std_dev_s": "0.22",
+      "_line": 5
     },
     {
       "steady_state_min": "10-39",
@@ -3441,7 +3446,8 @@
       "p95_s": "0.67",
       "p99_s": "0.85",
       "max_s": "1.76",
-      "std_dev_s": "0.14"
+      "std_dev_s": "0.14",
+      "_line": 6
     },
     {
       "steady_state_min": "10-39",
@@ -3457,7 +3463,8 @@
       "p95_s": "1.41",
       "p99_s": "1.79",
       "max_s": "3.61",
-      "std_dev_s": "0.31"
+      "std_dev_s": "0.31",
+      "_line": 7
     },
     {
       "steady_state_min": "10-39",
@@ -3473,7 +3480,8 @@
       "p95_s": "1.01",
       "p99_s": "1.28",
       "max_s": "2.50",
-      "std_dev_s": "0.22"
+      "std_dev_s": "0.22",
+      "_line": 8
     },
     {
       "steady_state_min": "10-39",
@@ -3489,7 +3497,8 @@
       "p95_s": "0.67",
       "p99_s": "0.86",
       "max_s": "1.76",
-      "std_dev_s": "0.14"
+      "std_dev_s": "0.14",
+      "_line": 9
     },
     {
       "steady_state_min": "10-39",
@@ -3505,7 +3514,8 @@
       "p95_s": "1.42",
       "p99_s": "1.81",
       "max_s": "3.61",
-      "std_dev_s": "0.31"
+      "std_dev_s": "0.31",
+      "_line": 10
     }
   ],
   "errors_by_type": {
@@ -3568,6 +3578,8 @@
           "tps_handled": 27.5,
           "cpu_pct_per_tps": 1.201,
           "cpu_bound_ceiling_tps": 66.6,
+          "ceiling_note": "",
+          "minutes_used": 10,
           "other_limits_seen": [],
           "other_monitored_limit_detected": false
         },
@@ -3576,6 +3588,8 @@
           "tps_handled": 27.5,
           "cpu_pct_per_tps": 1.18,
           "cpu_bound_ceiling_tps": 67.8,
+          "ceiling_note": "",
+          "minutes_used": 10,
           "other_limits_seen": [],
           "other_monitored_limit_detected": false
         },
@@ -3584,6 +3598,8 @@
           "tps_handled": 54.9,
           "cpu_pct_per_tps": 0.326,
           "cpu_bound_ceiling_tps": 245.6,
+          "ceiling_note": "",
+          "minutes_used": 10,
           "other_limits_seen": [],
           "other_monitored_limit_detected": null
         }
@@ -3594,6 +3610,8 @@
           "tps_handled": 50.0,
           "cpu_pct_per_tps": 1.058,
           "cpu_bound_ceiling_tps": 75.6,
+          "ceiling_note": "",
+          "minutes_used": 30,
           "other_limits_seen": [],
           "other_monitored_limit_detected": false
         },
@@ -3602,6 +3620,8 @@
           "tps_handled": 50.0,
           "cpu_pct_per_tps": 1.065,
           "cpu_bound_ceiling_tps": 75.1,
+          "ceiling_note": "",
+          "minutes_used": 30,
           "other_limits_seen": [],
           "other_monitored_limit_detected": false
         },
@@ -3610,32 +3630,40 @@
           "tps_handled": 100.1,
           "cpu_pct_per_tps": 0.305,
           "cpu_bound_ceiling_tps": 262.3,
+          "ceiling_note": "",
+          "minutes_used": 30,
           "other_limits_seen": [],
           "other_monitored_limit_detected": null
         }
       },
       "min 40-44": {
         "app1": {
-          "mean_cpu_pct": 25.5,
+          "mean_cpu_pct": 29.9,
           "tps_handled": 25.0,
-          "cpu_pct_per_tps": 1.022,
-          "cpu_bound_ceiling_tps": 78.3,
+          "cpu_pct_per_tps": 1.196,
+          "cpu_bound_ceiling_tps": 66.9,
+          "ceiling_note": "",
+          "minutes_used": 4,
           "other_limits_seen": [],
           "other_monitored_limit_detected": false
         },
         "app2": {
-          "mean_cpu_pct": 25.4,
+          "mean_cpu_pct": 30.2,
           "tps_handled": 25.0,
-          "cpu_pct_per_tps": 1.018,
-          "cpu_bound_ceiling_tps": 78.6,
+          "cpu_pct_per_tps": 1.209,
+          "cpu_bound_ceiling_tps": 66.2,
+          "ceiling_note": "",
+          "minutes_used": 4,
           "other_limits_seen": [],
           "other_monitored_limit_detected": false
         },
         "database": {
-          "mean_cpu_pct": 14.7,
+          "mean_cpu_pct": 16.8,
           "tps_handled": 49.9,
-          "cpu_pct_per_tps": 0.294,
-          "cpu_bound_ceiling_tps": 272.1,
+          "cpu_pct_per_tps": 0.337,
+          "cpu_bound_ceiling_tps": 237.7,
+          "ceiling_note": "",
+          "minutes_used": 4,
           "other_limits_seen": [],
           "other_monitored_limit_detected": null
         }

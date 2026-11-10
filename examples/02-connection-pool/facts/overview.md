@@ -80,7 +80,7 @@ Steady-state throughput: 92.9 TPS against 100.1 TPS in the baseline (-7.2%).
 
 ## SLA results (steady state)
 
-Calculated from the data only; the Test Execution Analyst decides whether the run is valid enough to report these as SLA results. Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged. First minute any SLA failed: 19.
+**Candidate results, pending the test validity result.** Calculated from the data only; the Test Execution Analyst decides whether the run is valid enough to report these as SLA results. Thresholds come from scenario.json. A missing measurement is Not evaluated, never Pass. Response time SLAs are judged per load generator per minute because percentiles cannot be averaged. First minute any SLA failed: 19.
 
 | SLA | Metric | Threshold | Evaluation | Result | Minutes Pass / Fail / Not evaluated | Window value | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |

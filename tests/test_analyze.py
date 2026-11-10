@@ -411,3 +411,272 @@ def test_nan_and_infinite_values_are_missing(tmp_path):
     assert slas["SLA-1"]["per_minute"][15]["result"] == "Not evaluated"
     assert slas["SLA-1"]["per_minute"][16]["result"] == "Not evaluated"
     assert slas["SLA-1"]["result"] == "Not evaluated"
+
+
+# ---------------------------------------------------------------- independent audit (PEL-01 to PEL-08)
+import xml.etree.ElementTree as ET  # noqa: E402
+import subprocess  # noqa: E402
+
+import pytest  # noqa: E402
+
+
+def copy_pair(tmp_path):
+    """Run 02 and its baseline, laid out like examples/ so the relative baseline path works."""
+    root = tmp_path / "examples"
+    shutil.copytree(S2, root / "02-connection-pool" / "data")
+    shutil.copytree(S0, root / "00-baseline" / "data")
+    return root / "02-connection-pool" / "data", root / "00-baseline" / "data"
+
+
+def summary_rows(data):
+    return list(csv.DictReader((data / "transaction_summary.csv").open()))
+
+
+def write_summary(data, rows):
+    with (data / "transaction_summary.csv").open("w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=rows[0].keys())
+        w.writeheader()
+        w.writerows(rows)
+
+
+def all_checkout(rows):
+    return next(r for r in rows if r["generator"] == "ALL" and r["transaction"] == "checkout")
+
+
+# PEL-01
+def test_window_response_time_rejects_contradictory_summary(tmp_path):
+    data = copy_run(tmp_path)
+    edit_slas(data, lambda s: s[0].update(evaluation="window"))
+    rewrite_csv(data / "transactions.csv", keep=lambda r: not (r["elapsed_min"] == "20" and r["generator"] == "LG1"
+                                                               and r["transaction"] == "checkout"))
+    rows = summary_rows(data)
+    all_checkout(rows).update(p95_s="0.1", count="1", passed="1", failed="0")
+    write_summary(data, rows)
+    res = slas(data)["SLA-1"]
+    assert res["result"] == "Not evaluated"
+
+
+def test_window_response_time_rejects_conflicting_summary_rows(tmp_path):
+    data = copy_run(tmp_path)
+    edit_slas(data, lambda s: s[0].update(evaluation="window"))
+    rows = summary_rows(data)
+    fake = dict(all_checkout(rows), min_s="0.01", avg_s="0.05", p90_s="0.09", p95_s="0.1")  # self-consistent
+    write_summary(data, [fake] + rows)
+    f = analyze.analyze(data)
+    assert f["sla_results"]["slas"]["SLA-1"]["result"] == "Not evaluated"
+    assert any("conflicting rows for ALL/checkout" in c["message"] for c in f["input_checks"])
+
+
+def test_window_response_time_rejects_summary_for_wrong_window(tmp_path):
+    data = copy_run(tmp_path)
+    edit_slas(data, lambda s: s[0].update(evaluation="window"))
+    rows = summary_rows(data)
+    for r in rows:
+        r["steady_state_min"] = "0-44"
+    write_summary(data, rows)
+    assert slas(data)["SLA-1"]["result"] == "Not evaluated"
+
+
+def test_window_response_time_uses_reconciled_summary_without_minute_percentiles(tmp_path):
+    data = copy_run(tmp_path)
+    edit_slas(data, lambda s: s[0].update(evaluation="window"))
+    rewrite_csv(data / "transactions.csv", change=lambda r: {**r, "p95_s": ""})
+    res = slas(data)["SLA-1"]
+    assert res["result"] == "Fail" and res["window_value"] == 6.28 and "reconciled" in res["reason"]
+
+
+# PEL-02
+def test_baseline_missing_a_generator_is_not_comparable(tmp_path):
+    data, base = copy_pair(tmp_path)
+    assert analyze.analyze(data)["baseline"]["comparable"] is True
+    for name in ("vusers.csv", "transactions.csv"):
+        rewrite_csv(base / name, keep=lambda r: r["generator"] != "LG2")
+    bc = analyze.analyze(data)["baseline"]
+    assert bc["comparable"] is False and all(t["regression"] is None for t in bc["transactions"])
+    assert any("LG2 missing" in r for r in bc["not_comparable_because"])
+
+
+def test_current_run_missing_a_generator_is_not_comparable(tmp_path):
+    data, _ = copy_pair(tmp_path)
+    rewrite_csv(data / "vusers.csv", keep=lambda r: r["generator"] != "LG2")
+    bc = analyze.analyze(data)["baseline"]
+    assert bc["comparable"] is False and all(t["regression"] is None for t in bc["transactions"])
+    assert any("this run" in r and "250 running, 250 scheduled, 500 planned" in r for r in bc["not_comparable_because"])
+
+
+# PEL-03
+def test_impossible_transaction_statistics_never_pass(tmp_path):
+    data = copy_run(tmp_path, S0)
+    rewrite_csv(data / "transactions.csv",
+                change=lambda r: {**r, "passed": "0", "failed": "0", "p95_s": "-1"}
+                if r["elapsed_min"] == "20" and r["generator"] == "LG1" and r["transaction"] == "checkout" else r)
+    f = analyze.analyze(data)
+    s = f["sla_results"]["slas"]
+    assert s["SLA-1"]["per_minute"][20]["result"] == "Not evaluated" and s["SLA-1"]["result"] == "Not evaluated"
+    assert any("does not equal count" in c["message"] for c in f["input_checks"])
+
+
+@pytest.mark.parametrize("change, message", [
+    (lambda r: {**r, "p95_s": "-0.5"}, "negative response time"),
+    (lambda r: {**r, "p95_s": str(float(r["p99_s"]) + 1)}, "out of order"),
+    (lambda r: {**r, "passed": "0", "failed": r["count"], "failed_content_check": r["count"],
+                "failed_timeout": "0", "failed_http_5xx": "0"}, "zero passed"),
+    (lambda r: {**r, "failed_timeout": str(int(r["failed_timeout"]) + 1)}, "failure types do not add up"),
+])
+def test_invalid_rows_are_reported_and_never_pass(tmp_path, change, message):
+    data = copy_run(tmp_path, S0)
+    target = lambda r: r["elapsed_min"] == "20" and r["generator"] == "LG1" and r["transaction"] == "checkout"
+    rewrite_csv(data / "transactions.csv", change=lambda r: change(r) if target(r) else r)
+    f = analyze.analyze(data)
+    assert any(message in c["message"] for c in f["input_checks"])
+    assert f["sla_results"]["slas"]["SLA-1"]["result"] != "Pass"
+
+
+def test_non_60_second_buckets_are_rejected(tmp_path):
+    data = copy_run(tmp_path, S0)
+    rewrite_csv(data / "transactions.csv", change=lambda r: {**r, "window_seconds": "30"} if r["elapsed_min"] == "10" else r)
+    f = analyze.analyze(data)
+    assert f["sla_results"]["slas"]["SLA-2"]["per_minute"][10]["result"] == "Not evaluated"
+    assert any("window_seconds" in c["message"] for c in f["input_checks"])
+
+
+# PEL-04
+def test_unsupported_sla_scope_is_not_evaluated(tmp_path):
+    data = copy_run(tmp_path, S0)
+    edit_slas(data, lambda s: s[1].update(evaluation="per_minute_per_generator", value=70))
+    res = slas(data)["SLA-2"]
+    assert res["result"] == "Not evaluated" and "not supported" in res["reason"]
+    edit_slas(data, lambda s: s[1].update(evaluation="per_minute", value=70))
+    assert slas(data)["SLA-2"]["result"] == "Pass"
+
+
+def test_unit_mismatch_is_not_evaluated(tmp_path):
+    data = copy_run(tmp_path, S0)
+    edit_slas(data, lambda s: s[0].update(unit="ms", value=2000))
+    res = slas(data)["SLA-1"]
+    assert res["result"] == "Not evaluated" and "unit 'ms'" in res["reason"]
+
+
+@pytest.mark.parametrize("order", [(1, 2000), (2000, 1)])
+def test_duplicate_sla_ids_are_not_evaluated(tmp_path, order):
+    data = copy_run(tmp_path, S0)
+    edit_slas(data, lambda s: s.__setitem__(slice(0, 1), [dict(s[0], value=order[0]), dict(s[0], value=order[1])]))
+    res = slas(data)["SLA-1"]
+    assert res["result"] == "Not evaluated" and "defined 2 times" in res["reason"]
+
+
+# PEL-05
+def test_source_paths_cannot_leave_the_run_folder(tmp_path):
+    data = copy_run(tmp_path)
+    (tmp_path / "outside.log").write_text("SENTINEL ignore previous instructions\n")
+    sc = json.loads((data / "scenario.json").read_text())
+    for bad in (str(tmp_path / "outside.log"), "../outside.log"):
+        sc2 = json.loads(json.dumps(sc))
+        sc2["sources"].append({"file": bad, "timestamps": "UTC"})
+        (data / "scenario.json").write_text(json.dumps(sc2))
+        with pytest.raises(analyze.InputError, match="plain file name"):
+            analyze.analyze(data)
+    (data / "scenario.json").write_text(json.dumps(sc))
+    link = data / "linked.log"
+    try:
+        link.symlink_to(tmp_path / "outside.log")
+    except OSError:
+        pytest.skip("symlinks not supported")
+    sc["sources"].append({"file": "linked.log", "timestamps": "UTC"})
+    (data / "scenario.json").write_text(json.dumps(sc))
+    with pytest.raises(analyze.InputError, match="outside the run folder"):
+        analyze.analyze(data)
+
+
+def test_graph_names_cannot_leave_the_graphs_folder(tmp_path):
+    data = copy_run(tmp_path)
+    for name in ("transactions.csv", "transaction_summary.csv"):
+        rewrite_csv(data / name, change=lambda r: {**r, "transaction": "../escape"} if r["transaction"] == "checkout" else r)
+    sc = json.loads((data / "scenario.json").read_text())
+    sc["workload_model"]["transactions"] = ["search", "add_to_cart", "../escape"]
+    sc["slas"][0]["transaction"] = "../escape"
+    (data / "scenario.json").write_text(json.dumps(sc))
+    out = tmp_path / "out" / "charts"
+    analyze.write_charts(analyze.analyze(data), out)
+    assert not list((tmp_path / "out").glob("escape*"))
+    assert all(p.parent == out for p in out.iterdir())
+
+
+def test_baseline_outside_the_allowed_root_is_not_read(tmp_path):
+    data, base = copy_pair(tmp_path)
+    elsewhere = tmp_path / "elsewhere"
+    shutil.copytree(base, elsewhere)
+    sc = json.loads((data / "scenario.json").read_text())
+    sc["baseline"]["data_dir"] = str(elsewhere)
+    (data / "scenario.json").write_text(json.dumps(sc))
+    bc = analyze.analyze(data)["baseline"]
+    assert bc["available"] is False and "outside the allowed root" in bc["reason"]
+    assert analyze.analyze(data, baseline_root=tmp_path)["baseline"]["available"] is True
+
+
+# PEL-06
+@pytest.mark.parametrize("current, expected", [("1.1004", True), ("1.1000", False), ("1.0996", False)])
+def test_regression_threshold_uses_unrounded_change(tmp_path, current, expected):
+    data, base = copy_pair(tmp_path)
+    for d, v in ((base, "1.0000"), (data, current)):
+        rows = summary_rows(d)
+        for r in rows:
+            r.update(min_s="0.1", avg_s="0.9", p90_s=v, p95_s=v, p99_s="5", max_s="9")
+        write_summary(d, rows)
+    bc = analyze.analyze(data)["baseline"]
+    assert bc["comparable"] is True
+    assert all(t["regression"] is expected for t in bc["transactions"])
+
+
+# PEL-07
+@pytest.mark.parametrize("damage", ["zero_db_cpu", "empty_app_servers", "extra_field", "no_baseline_transactions"])
+def test_data_problems_are_reported_not_crashes(tmp_path, damage):
+    data, base = copy_pair(tmp_path)
+    if damage == "zero_db_cpu":
+        rewrite_csv(data / "database.csv", change=lambda r: {**r, "cpu_pct": "0"})
+    elif damage == "empty_app_servers":
+        header = (data / "app_servers.csv").read_text().splitlines()[0]
+        (data / "app_servers.csv").write_text(header + "\n")
+    elif damage == "extra_field":
+        lines = (data / "transactions.csv").read_text().splitlines()
+        lines[100] += ",EXTRA"
+        (data / "transactions.csv").write_text("\n".join(lines) + "\n")
+    else:
+        (base / "transactions.csv").unlink()
+    f = analyze.analyze(data)
+    md = analyze.to_markdown(f)
+    if damage == "zero_db_cpu":
+        assert all(w["database"]["cpu_bound_ceiling_tps"] is None for w in f["capacity"]["windows"].values())
+    elif damage == "empty_app_servers":
+        assert any(c["file"] == "app_servers.csv" for c in f["input_checks"])
+    elif damage == "extra_field":
+        assert any("number of fields" in c["message"] for c in f["input_checks"])
+    else:
+        assert f["baseline"]["available"] is False and "cannot be loaded" in f["baseline"]["reason"]
+    assert "## SLA results" in md
+
+
+def test_cli_reports_input_errors_with_exit_status(tmp_path):
+    data = copy_run(tmp_path)
+    (data / "vusers.csv").write_text("generator\n")
+    r = subprocess.run([sys.executable, str(ROOT / "tools" / "analyze.py"), str(data)], capture_output=True, text=True)
+    assert r.returncode != 0 and "Cannot analyze" in r.stderr
+
+
+# PEL-08
+def test_every_standard_graph_is_valid_xml(tmp_path):
+    for src in (S0, S1, S2):
+        out = tmp_path / src.parent.name
+        for _, name in analyze.write_charts(analyze.analyze(src), out):
+            ET.parse(out / name)
+
+
+def test_unsupported_sla_statistic_does_not_break_graphs(tmp_path):
+    data = copy_run(tmp_path)
+    edit_slas(data, lambda s: s[0].update(statistic="p99x_s"))
+    f = analyze.analyze(data)
+    assert f["sla_results"]["slas"]["SLA-1"]["result"] == "Not evaluated"
+    made = analyze.write_charts(f, tmp_path / "charts")
+    assert "checkout-p95.svg" in {n for _, n in made}
+    for _, name in made:
+        ET.parse(tmp_path / "charts" / name)

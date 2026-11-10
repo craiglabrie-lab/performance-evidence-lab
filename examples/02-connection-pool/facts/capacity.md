@@ -21,6 +21,6 @@ Utilization Law (U = X × D): CPU % per transaction/s, and the throughput each t
 | min 19-39 | app1 | 52.6 | 45.0 | 1.168 | 68.5 | **DB connection pool at its maximum in 20 of 21 minutes; mean DB pool wait 1411 ms; threads at 90% or more of maximum in 5 minutes: CPU is not the limiting resource; ceiling does not apply** |
 | min 19-39 | app2 | 48.3 | 45.0 | 1.072 | 74.6 | **DB connection pool at its maximum in 20 of 21 minutes; mean DB pool wait 1396 ms; threads at 90% or more of maximum in 5 minutes: CPU is not the limiting resource; ceiling does not apply** |
 | min 19-39 | database | 29.1 | 90.0 | 0.324 | 247.2 | not checked |
-| min 40-44 | app1 | 25.8 | 25.1 | 1.027 | 77.9 | no other monitored limit detected |
-| min 40-44 | app2 | 26.6 | 25.1 | 1.058 | 75.6 | no other monitored limit detected |
-| min 40-44 | database | 14.5 | 50.2 | 0.289 | 276.4 | not checked |
+| min 40-44 | app1 | 30.2 | 25.1 | 1.201 | 66.6 | no other monitored limit detected |
+| min 40-44 | app2 | 31.0 | 25.1 | 1.236 | 64.7 | no other monitored limit detected |
+| min 40-44 | database | 16.4 | 50.2 | 0.327 | 244.7 | not checked |

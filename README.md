@@ -15,13 +15,14 @@ It is built on a lesson from 17 years of performance testing: **before you diagn
 | Part | Status |
 | --- | --- |
 | Analysis workflow, nine agent role files, Claude Code sub-agent definitions | Implemented |
-| Deterministic tooling: transaction summary, p90/p95/p99, errors by type, graphs, baseline comparison with comparability checks, CPU-bound throughput ceiling (conditional), input validation (with tests) | Implemented |
+| Deterministic tooling: transaction summary, p90/p95/p99, errors by type, graphs, baseline comparison with comparability checks, CPU-bound throughput ceiling (conditional), input validation (with tests) | Implemented; candidate SLA results pending the test validity result |
+| Workflow checks between agents: fresh run folder, hard stop on a missing or stale handoff, SLA results held to the test validity result and the computed results ([`tools/check_run.py`](tools/check_run.py)) | Implemented, with tests; not yet exercised in a recorded run |
 | Three synthetic test runs: a baseline and two scenarios, with an answer key written in advance | Implemented |
 | Cost controls: per-agent context slices, smaller-model routing for three roles, lean handoffs ([ADR-0009](docs/decisions/0009-cost-controls.md)) | Implemented, not yet measured |
 | Recorded agent runs of the current agents, scored against the answer key | Planned: next stage, starting with test run 02 |
 | Handoff schema (draft JSON Schema included), orchestrator with checkpoints and human sign-off, agent tool contracts, cost and model routing, evaluation harness, multi-run regression tracking | Concept: [design documents](docs/concepts/README.md), each labeled as not yet implemented |
 
-All data is synthetic. Nothing has been tested on production results. The [persona review](docs/reviews/2026-11-persona-review.md) records how the repository was reviewed by a performance engineer, a performance tester and an AI engineer, and the status of each point.
+All data is synthetic. Nothing has been tested on production results. An [independent audit](docs/reviews/2026-11-independent-audit.md) of the tooling found eight defects; each is fixed and has a regression test. The [persona review](docs/reviews/2026-11-persona-review.md) records how the repository was reviewed by a performance engineer, a performance tester and an AI engineer, and the status of each point.
 
 ## Why an agentic workflow
 
@@ -32,14 +33,14 @@ AI can read a full set of load test results in seconds and write a polished repo
 - a "regression" against the baseline that is really a broken test;
 - "probable database contention" that the database's own metrics contradict.
 
-The workflow prevents these the way a good performance team does:
+The workflow is designed to catch these the way a good performance team does. Whether the agents actually do is what the recorded, scored runs will show:
 
 - it splits the analysis into defined roles;
 - it validates the test execution before any bottleneck analysis;
 - each engineer identifies or eliminates their own tier with its own metrics;
 - the findings are peer-reviewed before they go out.
 
-Deterministic tooling does every calculation, so no agent has to do math on its own.
+Deterministic tooling does every calculation, so no agent has to do math on its own. Its SLA results are **candidate** results: the Test Execution Analyst's validity result decides whether they can be reported, and a workflow check blocks any reported result stronger than the data supports.
 
 ## The agents
 
@@ -134,9 +135,9 @@ pytest -q
 ## Limitations
 
 - **Synthetic test runs.** The same author designed the test runs and the agent checklists, so they show the workflow working on cases it was designed for.
-- **One model for every agent.** The Peer Reviewer has its own context, not its own model.
-- **The orchestrator is a prompt, not code.** There are no checkpoints or resume yet (see the [orchestrator concept](docs/concepts/orchestrator.md)).
-- **Tool lists are enforced; file-level limits are not.** Each sub-agent's input files are instructions, and Python can read any file.
+- **Model diversity depends on the runner.** Three roles are routed to Sonnet; the other six inherit the model the run starts with. The Peer Reviewer has its own context, but not necessarily its own model.
+- **The orchestrator is a prompt, not code.** A deterministic check runs between steps and stops the run on a missing handoff, but there is no resume yet (see the [orchestrator concept](docs/concepts/orchestrator.md)).
+- **Tool lists are enforced; file-level limits are not.** Each sub-agent's input files, and the rule not to read the answer key, are instructions. Bash can read any file and, unless the host blocks it, reach the network. Run with host-level sandboxing and permission rules before using sensitive results.
 - **Analysis only.** The agents never start a load test, change a system or send anything. The go/no-go recommendation goes to a human release approver.
 
 ## Repository
@@ -146,7 +147,7 @@ method/           analysis workflow: stages, test summary results, rules, record
 agents/           the nine agent role files
 .claude/agents/   Claude Code sub-agent definitions (one per role, fixed tool lists)
 .claude/commands/ the /review-run orchestration command
-tools/            analyze.py (computed results summary and graphs) and generate_synthetic.py
+tools/            analyze.py (computed results summary and graphs), check_run.py (workflow checks) and generate_synthetic.py
 examples/         baseline run 00 and test runs 01 and 02: data, computed results summary, graphs
 evaluation/       answer key and its pre-run hash
 schemas/          draft handoff JSON Schema and example (concept)

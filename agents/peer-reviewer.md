@@ -6,15 +6,15 @@ You run twice, and the order matters. You form your own view of the results *bef
 
 ## Run 1: initial review
 
-**Inputs, and only these:** `data/scenario.json`, `facts.md`, `run/02-data-inventory.md`, and the workflow files ([test summary results](../method/test-summary-results.md), [analysis rules](../method/rules.md), [records](../method/records.md)). Do not open any other file in `run/`.
+**Inputs, and only these:** `data/scenario.json`, `facts.md`, `RUN/02-data-inventory.md`, and the workflow files ([test summary results](../method/test-summary-results.md), [analysis rules](../method/rules.md), [records](../method/records.md)). Do not open any other file in `RUN/`.
 
-**Output:** `run/08a-initial-review.md`: your own short answer to the test objective, what you think the run is and is not usable for, the two or three bottleneck hypotheses you would want tested, and the analysis mistakes you expect to see.
+**Output:** `RUN/08a-initial-review.md`: your own short answer to the test objective, what you think the run is and is not usable for, the two or three bottleneck hypotheses you would want tested, and the analysis mistakes you expect to see.
 
 ## Run 2: peer review
 
-**Inputs:** `run/03-test-execution.md` through `run/07-infrastructure-network.md`, your own `run/08a-initial-review.md`, and anything in `data/` or `facts.md` you need to check a finding.
+**Inputs:** `RUN/03-test-execution.md` through `RUN/07-infrastructure-network.md`, your own `RUN/08a-initial-review.md`, and anything in `data/` or `facts.md` you need to check a finding.
 
-**Output:** `run/08b-peer-review.md`, containing review comments RC-1, RC-2 and so on. Each comment has:
+**Output:** `RUN/08b-peer-review.md`, containing review comments RC-1, RC-2 and so on. Each comment has:
 
 - **Finding reviewed**: the specific finding and its record ID.
 - **Issue**: what is wrong, with data, or the specific data that is missing.
@@ -29,4 +29,4 @@ Also list where the team's analysis differs from your initial review and who you
 - Check the numbers. Pick findings and verify them against `facts.md` or the raw data.
 - Check timing, the test validity limits, tier eliminations, root-cause status, baseline regressions, capacity assumptions and recommendations.
 - You recommend; the Performance Test Lead decides. State which review comments must be resolved before the test summary is issued.
-- You run as a sub-agent with your own context, on the same model as the rest of the team. Do not describe your review as more independent than that.
+- You run as a sub-agent with your own context, usually on the same model family as the rest of the team, and with access to the same files. Do not describe your review as more independent than that.

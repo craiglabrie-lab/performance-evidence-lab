@@ -9,7 +9,8 @@ works from, so no agent calculates numbers on its own.
 What it does:
   * inventory: rows, time range (normalized to UTC), missing minutes per entity
   * load profile: scheduled vs running virtual users, throughput, error rate, Little's Law
-  * SLA results: per steady-state minute Pass/Fail against scenario.json
+  * candidate SLA results against scenario.json (the test validity result decides what is reported)
+  * input validation: count identities, response-time order, 60-second buckets, duplicates, paths
   * windowed summaries of every numeric metric, per entity
   * prompt-injection scan of text logs
   * transaction summary, errors by type, standard graphs (SVG)
@@ -43,6 +44,7 @@ import statistics
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+from xml.sax.saxutils import escape as _xml_escape
 
 ENTITY_COLUMNS = ("generator", "node", "component", "dependency")
 INJECTION_PATTERNS = re.compile(
@@ -83,7 +85,7 @@ class InputError(ValueError):
 
 REQUIRED_SCENARIO = {
     "run": ["run_id", "start_utc", "duration_min"],
-    "workload_model": ["users", "ramp_up_min", "steady_state_min", "ramp_down_min", "pacing"],
+    "workload_model": ["users", "ramp_up_min", "steady_state_min", "ramp_down_min", "pacing", "transactions"],
 }
 REQUIRED_COLUMNS = {
     "transactions.csv": ["generator", "transaction", "count", "passed", "failed"],
@@ -95,6 +97,106 @@ REQUIRED_COLUMNS = {
 }
 COUNT_COLUMNS = {"count", "passed", "failed", "failed_timeout", "failed_http_5xx", "failed_content_check",
                  "scheduled_vusers", "running_vusers", "exited_with_error"}
+FAILURE_BUCKETS = ("failed_timeout", "failed_http_5xx", "failed_content_check")
+LATENCY_ORDER = ("min_s", "p90_s", "p95_s", "p99_s", "max_s")  # each must be <= the next
+LATENCY_COLUMNS = LATENCY_ORDER + ("avg_s",)
+BUCKET_SECONDS = 60  # per-minute exports only; other bucket sizes are rejected, never rescaled
+SUMMARY_COLUMNS = ["generator", "transaction", "count", "passed", "failed"]
+
+
+def read_rows(path: Path, name: str, issues: list[dict]) -> tuple[list[str], list[dict]]:
+    """Read a CSV file. Rows with more or fewer fields than the header are reported and treated as missing."""
+    with path.open(newline="") as fh:
+        reader = csv.DictReader(fh)
+        header = list(reader.fieldnames or [])
+        rows = []
+        for r in reader:
+            if None in r or any(v is None for v in r.values()):
+                issues.append({"level": "warning", "file": name, "line": reader.line_num,
+                               "message": f"row has a different number of fields than the header "
+                                          f"({len(header)}); row treated as missing"})
+                continue
+            r["_line"] = reader.line_num
+            rows.append(r)
+    return header, rows
+
+
+def accounting_problem(r: dict) -> str | None:
+    """Count identities for one transaction row: passed + failed = count, and failure types add up to failed."""
+    if not {"count", "passed", "failed"} <= r.keys():
+        return None
+    c, p, f = (int(num(r[k])) for k in ("count", "passed", "failed"))
+    if p + f != c:
+        return f"passed ({p}) + failed ({f}) does not equal count ({c})"
+    if all(b in r and r[b] not in ("", None) for b in FAILURE_BUCKETS):
+        if sum(int(num(r[b])) for b in FAILURE_BUCKETS) != f:
+            return "failure types do not add up to failed"
+    return None
+
+
+def latency_problem(r: dict) -> str | None:
+    """Response times must be non-negative and ordered (min <= p90 <= p95 <= p99 <= max, min <= avg <= max),
+    and there must be passed transactions behind them."""
+    vals = {c: num(r[c]) for c in LATENCY_COLUMNS if c in r and num(r[c]) is not None}
+    if not vals:
+        return None
+    if "passed" in r and num(r["passed"]) == 0:
+        return "response times reported for zero passed transactions"
+    if any(v < 0 for v in vals.values()):
+        return "negative response time"
+    chain = [vals[c] for c in LATENCY_ORDER if c in vals]
+    if any(a > b for a, b in zip(chain, chain[1:])):
+        return "percentiles out of order (min <= p90 <= p95 <= p99 <= max)"
+    if "avg_s" in vals and (vals["avg_s"] < vals.get("min_s", 0) or vals["avg_s"] > vals.get("max_s", math.inf)):
+        return "average outside the min-max range"
+    return None
+
+
+def load_summary(data_dir: Path, scenario: dict, issues: list[dict]) -> list[dict] | None:
+    """The load tool's run-level transaction summary, validated. None if the file does not exist.
+
+    Rows with impossible counts or response times, the wrong steady-state window, or conflicting
+    duplicates are reported and dropped, so they can never support a result.
+    """
+    name = "transaction_summary.csv"
+    path = data_dir / name
+    if not path.exists():
+        return None
+    header, rows = read_rows(path, name, issues)
+    missing = [c for c in SUMMARY_COLUMNS if c not in header]
+    if missing:
+        issues.append({"level": "warning", "file": name, "line": None,
+                       "message": f"missing required columns {missing}; summary not used"})
+        return []
+    lo, hi = scenario["workload_model"]["steady_state_min"]
+    good = []
+    for r in rows:
+        bad = [c for c in ("count", "passed", "failed") if num(r[c]) is None or num(r[c]) < 0 or num(r[c]) != int(num(r[c]))]
+        problem = (f"malformed or empty count in {bad}" if bad else accounting_problem(r) or latency_problem(r))
+        window = r.get("steady_state_min")
+        if not problem and window not in (None, "") and window.strip() != f"{lo}-{hi}":
+            problem = f"summary covers minutes {window}, not the steady state {lo}-{hi}"
+        if problem:
+            issues.append({"level": "warning", "file": name, "line": r["_line"],
+                           "message": f"{problem}; row not used"})
+            continue
+        good.append(r)
+    groups = defaultdict(list)
+    for r in good:
+        groups[(r["generator"], r["transaction"])].append(r)
+    out = []
+    for (g, t), grp in groups.items():
+        payload = {tuple(sorted((k, v) for k, v in r.items() if not k.startswith("_"))) for r in grp}
+        if len(payload) > 1:
+            issues.append({"level": "warning", "file": name, "line": None,
+                           "message": f"conflicting rows for {g}/{t} (lines {', '.join(str(r['_line']) for r in grp)}); "
+                                      "none used"})
+            continue
+        if len(grp) > 1:
+            issues.append({"level": "warning", "file": name, "line": None,
+                           "message": f"exact duplicate rows for {g}/{t}; counted once"})
+        out.append(grp[0])
+    return sorted(out, key=lambda r: r["_line"])
 
 
 def record_key(r: dict) -> tuple:
@@ -137,6 +239,12 @@ def validate_scenario(scenario: dict) -> list[str]:
         errors += [f"scenario.json: missing {section}.{k}" for k in keys if k not in scenario[section]]
     if not isinstance(scenario.get("sources"), list) or not scenario.get("sources"):
         errors.append("scenario.json: 'sources' must list the data files")
+    for src in scenario.get("sources") or []:
+        f = src.get("file") if isinstance(src, dict) else None
+        if not isinstance(f, str) or not f or f in (".", "..") or "/" in f or "\\" in f or Path(f).is_absolute():
+            errors.append(f"scenario.json: source file {f!r} must be a plain file name inside the run folder")
+    if not isinstance((scenario.get("workload_model") or {}).get("transactions"), list):
+        errors.append("scenario.json: workload_model.transactions must list the transaction names")
     if not isinstance(scenario.get("slas"), list):
         errors.append("scenario.json: 'slas' must be a list (it can be empty)")
     pacing = (scenario.get("workload_model") or {}).get("pacing", "")
@@ -164,6 +272,7 @@ def clean_rows(name: str, rows: list[dict], start: datetime, issues: list[dict])
     time_col = next((c for c in rows[0] if c.startswith("window_start") or c.startswith("timestamp")), None)
     keep, seen, mismatched = [], set(), []
     for i, r in enumerate(rows, start=2):  # line 1 is the header
+        i = r.get("_line", i)
         if time_col:
             try:
                 ts = parse_time(r[time_col])
@@ -188,6 +297,16 @@ def clean_rows(name: str, rows: list[dict], start: datetime, issues: list[dict])
                            "message": f"malformed or empty count in {sorted(bad_count) or 'count/passed/failed'}; "
                                       "row treated as missing"})
             continue
+        if "window_seconds" in r and num(r["window_seconds"]) != BUCKET_SECONDS:
+            issues.append({"level": "warning", "file": name, "line": i,
+                           "message": f"window_seconds is '{r['window_seconds']}'; only {BUCKET_SECONDS}-second "
+                                      "buckets are supported, row treated as missing"})
+            continue
+        problem = accounting_problem(r)
+        if problem:
+            issues.append({"level": "warning", "file": name, "line": i,
+                           "message": f"{problem}; row treated as missing"})
+            continue
         for c, v in list(r.items()):
             if c.startswith("_") or c in COUNT_COLUMNS or c == "elapsed_min" or c == time_col:
                 continue
@@ -195,6 +314,13 @@ def clean_rows(name: str, rows: list[dict], start: datetime, issues: list[dict])
                 issues.append({"level": "warning", "file": name, "line": i,
                                "message": f"non-numeric {c} '{v}'; treated as missing"})
                 r[c] = ""
+        problem = latency_problem(r)
+        if problem:
+            issues.append({"level": "warning", "file": name, "line": i,
+                           "message": f"{problem}; response times treated as missing"})
+            for c in LATENCY_COLUMNS:
+                if c in r:
+                    r[c] = ""
         r["_line"] = i
         keep.append(r)
     keep = resolve_duplicates(name, keep, issues)
@@ -220,7 +346,7 @@ def inventory(data_dir: Path, scenario: dict, start: datetime, tables: dict) -> 
     for s in scenario["sources"]:
         f = s["file"]
         path = data_dir / f
-        item = {"file": f, "present": path.exists(), "timestamps": s["timestamps"],
+        item = {"file": f, "present": path.exists(), "timestamps": s.get("timestamps", "not stated"),
                 "limitations": s.get("known_limitations", "")}
         if not path.exists():
             out.append(item)
@@ -228,12 +354,15 @@ def inventory(data_dir: Path, scenario: dict, start: datetime, tables: dict) -> 
         if f == "transaction_summary.csv":
             item["rows"] = len(load_csv(path))
             item["coverage"] = {"steady state": "run-level summary"}
+        elif f.endswith(".csv") and f not in tables:
+            item["loaded"] = False
+            item["limitations"] = "; ".join(x for x in (item["limitations"], "not loaded: see Input checks") if x)
         elif f.endswith(".csv"):
             rows = tables[f]
             item["rows"] = len(rows)
             times = sorted(r["_time_utc"] for r in rows if "_time_utc" in r)
             item["range_utc"] = [times[0], times[-1]] if times else None
-            if s["timestamps"] != "UTC":
+            if item["timestamps"] != "UTC":
                 item["normalization"] = "converted to UTC using the offset in each timestamp"
             per_entity = defaultdict(set)
             for r in rows:
@@ -312,29 +441,51 @@ def combine(results: list[str]) -> str:
     return PASS
 
 
+# What the tool can evaluate. Anything else is reported as Not evaluated with the reason, never
+# approximated: for example a per-generator throughput SLA is not judged on combined throughput.
+SUPPORTED_SLAS = {
+    "response_time": {"evaluation": {"per_minute_per_generator", "window"}, "unit": {"s"}},
+    "throughput": {"evaluation": {"per_minute", "window"}, "unit": {"TPS", "transactions/s"}},
+    "error_rate": {"evaluation": {"per_minute", "window"}, "unit": {"%"}},
+}
+RESPONSE_TIME_STATISTICS = set(LATENCY_COLUMNS)
+
+
 def sla_problem(sla: dict, tables: dict) -> str | None:
     """Return why an SLA cannot be evaluated by the tool, or None if it can."""
     missing = [k for k in ("id", "type", "operator", "value", "evaluation") if k not in sla]
     if missing:
         return f"SLA definition has no machine-readable {', '.join(missing)}"
-    if sla["type"] not in SLA_TYPES:
+    if sla["type"] not in SUPPORTED_SLAS:
         return f"SLA type '{sla['type']}' is not supported by the tool"
     if sla["operator"] not in OPERATORS or num(sla["value"]) is None:
         return "SLA operator or threshold value is not usable"
+    rules = SUPPORTED_SLAS[sla["type"]]
+    if sla.get("unit") not in rules["unit"]:
+        return (f"unit '{sla.get('unit')}' is not supported for a {sla['type']} SLA "
+                f"(supported: {', '.join(sorted(rules['unit']))}); values are not converted")
+    if sla["evaluation"] not in rules["evaluation"]:
+        return (f"evaluation '{sla['evaluation']}' is not supported for a {sla['type']} SLA "
+                f"(supported: {', '.join(sorted(rules['evaluation']))})")
     if "transactions.csv" not in tables or not tables["transactions.csv"]:
         return "no transaction data"
     if sla["type"] == "response_time":
         if "transaction" not in sla or "statistic" not in sla:
             return "response time SLA needs 'transaction' and 'statistic'"
+        if sla["statistic"] not in RESPONSE_TIME_STATISTICS:
+            return f"statistic '{sla['statistic']}' is not supported (supported: {', '.join(sorted(RESPONSE_TIME_STATISTICS))})"
         if sla["statistic"] not in tables["transactions.csv"][0]:
             return f"statistic '{sla['statistic']}' is not in transactions.csv"
     return None
 
 
-def reconcile_with_summary(rows: list[dict], data_dir: Path, lo: int, hi: int) -> list[str]:
-    """Compare steady-state per-minute counts with the run-level transaction summary, if present."""
-    summary = transaction_summary(data_dir)
-    if not summary:
+def reconcile_with_summary(rows: list[dict], summary: list[dict] | None, lo: int, hi: int) -> list[dict]:
+    """Compare steady-state per-minute counts with the run-level transaction summary, both ways.
+
+    Every summary row must match the per-minute totals, and every generator/transaction pair in the
+    per-minute data (and its ALL total) must have a summary row.
+    """
+    if summary is None:
         return []
     totals = defaultdict(lambda: [0, 0])
     for r in rows:
@@ -343,16 +494,23 @@ def reconcile_with_summary(rows: list[dict], data_dir: Path, lo: int, hi: int) -
                 totals[(g, r["transaction"])][0] += int(r["count"])
                 totals[(g, r["transaction"])][1] += int(r["failed"])
     out = []
+    seen = set()
     for s in summary:
-        got = totals.get((s["generator"], s["transaction"]), [0, 0])
+        key = (s["generator"], s["transaction"])
+        seen.add(key)
+        got = totals.get(key, [0, 0])
         want = [num(s.get("count")), num(s.get("failed"))]
         if want[0] is None or got[0] != want[0] or (want[1] is not None and got[1] != want[1]):
-            out.append(f"{s['generator']}/{s['transaction']}: per-minute count {got[0]}, failed {got[1]}; "
-                       f"summary count {s.get('count')}, failed {s.get('failed')}")
+            out.append({"generator": key[0], "transaction": key[1],
+                        "text": f"{key[0]}/{key[1]}: per-minute count {got[0]}, failed {got[1]}; "
+                                f"summary count {s.get('count')}, failed {s.get('failed')}"})
+    for key in sorted(set(totals) - seen):
+        out.append({"generator": key[0], "transaction": key[1],
+                    "text": f"{key[0]}/{key[1]}: in the per-minute data but no usable summary row"})
     return out
 
 
-def criteria(scenario: dict, tables: dict, wl: dict, data_dir: Path | None = None) -> dict:
+def criteria(scenario: dict, tables: dict, wl: dict, summary: list[dict] | None = None) -> dict:
     """Evaluate every SLA in scenario.json. Thresholds come from the SLA definitions, never from code.
 
     Rules: a missing measurement is Not evaluated, never Pass; percentiles are never averaged;
@@ -361,16 +519,22 @@ def criteria(scenario: dict, tables: dict, wl: dict, data_dir: Path | None = Non
     lo, hi = scenario["workload_model"]["steady_state_min"]
     generators = sorted(g for g in scenario["workload_model"].get("users", {}) if g != "total")
     rows = tables.get("transactions.csv", [])
-    expected_tx = scenario["workload_model"].get("transactions") or sorted({r["transaction"] for r in rows
-                                                                            if lo <= int(r["elapsed_min"]) <= hi})
+    expected_tx = scenario["workload_model"]["transactions"]
     by_min = defaultdict(list)
     for r in rows:
         by_min[int(r["elapsed_min"])].append(r)
-    mismatches = reconcile_with_summary(rows, data_dir, lo, hi) if data_dir else []
+    mismatch_detail = reconcile_with_summary(rows, summary, lo, hi)
+    mismatches = [m["text"] for m in mismatch_detail]
+    id_counts = defaultdict(int)
+    for sla in scenario.get("slas", []):
+        id_counts[sla.get("id", "?")] += 1
     out = {}
     for sla in scenario.get("slas", []):
         res = {"definition": sla, "per_minute": {}, "window_value": None, "reason": ""}
         problem = sla_problem(sla, tables)
+        if id_counts[sla.get("id", "?")] > 1:
+            problem = (f"SLA id '{sla.get('id')}' is defined {id_counts[sla.get('id', '?')]} times; "
+                       "the definitions conflict, so none is evaluated")
         if problem:
             res.update(result=NOT_EVALUATED, reason=problem)
             out[sla.get("id", "?")] = res
@@ -420,12 +584,25 @@ def criteria(scenario: dict, tables: dict, wl: dict, data_dir: Path | None = Non
             incomplete = [m for m, e in res["per_minute"].items() if e.get("missing") or
                           ("value" in e and e["value"] is None)]
             if kind == "response_time":
-                summary = transaction_summary(data_dir) if data_dir else None
-                row = next((r for r in summary or [] if r["generator"] == "ALL"
-                            and r["transaction"] == sla["transaction"]), None)
+                # Evidence policy: the load tool's run-level summary is the only source of a window
+                # percentile, and it is used only when it reconciles with complete per-minute data for
+                # this transaction. Per-minute percentile values themselves may be blank.
+                tx = sla["transaction"]
+                row = next((r for r in summary or [] if r["generator"] == "ALL" and r["transaction"] == tx), None)
                 v = num(row.get(sla["statistic"])) if row else None
-                res["reason"] = "from the run-level transaction summary" if v is not None else \
-                    "needs a run-level transaction summary; per-minute percentiles cannot be averaged"
+                tx_gaps = [m for m in range(lo, hi + 1)
+                           if any(not any(r["generator"] == g and r["transaction"] == tx for r in by_min.get(m, []))
+                                  for g in generators)]
+                tx_mismatch = [m["text"] for m in mismatch_detail if m["transaction"] == tx]
+                if v is None:
+                    res["reason"] = "needs a usable run-level transaction summary row (ALL/" + tx + \
+                        "); per-minute percentiles cannot be averaged"
+                elif tx_gaps:
+                    res["reason"] = f"per-minute {tx} rows missing for minutes {tx_gaps}; the summary cannot be checked"
+                elif tx_mismatch:
+                    res["reason"] = "run-level summary does not match the per-minute data: " + "; ".join(tx_mismatch[:3])
+                else:
+                    res["reason"] = "from the run-level transaction summary, reconciled with per-minute counts"
             else:
                 steady = [r for m in range(lo, hi + 1) for r in by_min.get(m, [])]
                 count = sum(int(r["count"]) for r in steady)
@@ -435,6 +612,8 @@ def criteria(scenario: dict, tables: dict, wl: dict, data_dir: Path | None = Non
             res["window_value"] = None if v is None else round(v, 2)
             if v is None:
                 res["result"] = NOT_EVALUATED
+            elif kind == "response_time" and (tx_gaps or tx_mismatch):
+                res["result"] = NOT_EVALUATED
             elif incomplete and kind != "response_time":
                 res["result"] = NOT_EVALUATED
                 res["reason"] = f"data missing for minutes {incomplete}"
@@ -443,15 +622,14 @@ def criteria(scenario: dict, tables: dict, wl: dict, data_dir: Path | None = Non
                 res["reason"] = "per-minute counts do not match the run-level summary: " + "; ".join(mismatches[:3])
             else:
                 res["result"] = PASS if ok(v) else FAIL
-        else:
-            res.update(result=NOT_EVALUATED, reason=f"evaluation mode '{mode}' is not supported")
         res["counts"] = {k: minute_results.count(k) for k in (PASS, FAIL, NOT_EVALUATED)} if minute_results else {}
         out[sla["id"]] = res
     fails = {k: [m for m, e in v["per_minute"].items() if e.get("result") == FAIL] for k, v in out.items()}
     steady_tx = [r for r in rows if lo <= int(r["elapsed_min"]) <= hi]
     total = sum(int(r["count"]) for r in steady_tx)
     failed = sum(int(r["failed"]) for r in steady_tx)
-    return {"steady_state_min": [lo, hi], "slas": out, "failing_minutes": fails,
+    return {"status": "candidate results, pending the test validity result",
+            "steady_state_min": [lo, hi], "slas": out, "failing_minutes": fails,
             "expected_transactions": expected_tx, "summary_mismatches": mismatches,
             "steady_error_rate_pct": round(100 * failed / total, 2) if total else None,
             "first_failing_minute": min((m for ms in fails.values() for m in ms), default=None),
@@ -554,22 +732,21 @@ def load_run(data_dir: Path) -> tuple[dict, dict, list[dict]]:
     for src in scenario["sources"]:
         name = src.get("file", "")
         p = data_dir / name
+        if p.exists() and p.resolve().parent != data_dir.resolve():
+            raise InputError(f"{name}: resolves outside the run folder; not read")
         if not p.exists():
             issues.append({"level": "warning", "file": name, "line": None, "message": "listed in scenario.json but not found"})
             continue
         if p.suffix != ".csv":
             continue
-        rows = load_csv(p)
-        cols = rows[0].keys() if rows else []
+        if name == "transaction_summary.csv":
+            continue  # validated separately by load_summary
+        cols, rows = read_rows(p, name, issues)
         missing = [c for c in REQUIRED_COLUMNS.get(name, []) if c not in cols]
         if missing or not rows:
             level = "error" if name in ("transactions.csv", "vusers.csv") else "warning"
             issues.append({"level": level, "file": name, "line": None,
                            "message": f"missing required columns {missing}" if missing else "file has no rows"})
-            if level == "error":
-                continue
-            continue
-        if name == "transaction_summary.csv":
             continue
         tables[name] = clean_rows(name, rows, start, issues)
     blocking = [i for i in issues if i["level"] == "error"]
@@ -581,10 +758,16 @@ def load_run(data_dir: Path) -> tuple[dict, dict, list[dict]]:
     return scenario, tables, issues
 
 
-def analyze(data_dir: Path, windows=None) -> dict:
+def analyze(data_dir: Path, windows=None, baseline_root: Path | None = None) -> dict:
+    """Analyze one test run folder.
+
+    baseline_root: the folder a baseline run must be inside. Defaults to two levels above the run's
+    data folder (the examples/ folder in this repository). A baseline outside it is not read.
+    """
     scenario, tables, issues = load_run(data_dir)
+    summary = load_summary(data_dir, scenario, issues)
     wl = workload(scenario, tables)
-    crit = criteria(scenario, tables, wl, data_dir)
+    crit = criteria(scenario, tables, wl, summary)
     wins = windows or default_windows(scenario, crit["first_failing_minute"])
     return {
         "run": scenario["run"], "test_objective": scenario["test_objective"],
@@ -598,10 +781,10 @@ def analyze(data_dir: Path, windows=None) -> dict:
         "summaries": summarize(tables, wins),
         "traces": traces(tables, wins),
         "execution": execution(scenario),
-        "transaction_summary": transaction_summary(data_dir),
+        "transaction_summary": summary,
         "errors_by_type": errors_by_type(tables, wins),
         "capacity": capacity(tables, wins),
-        "baseline": baseline_comparison(data_dir, scenario, tables),
+        "baseline": baseline_comparison(data_dir, scenario, tables, summary, issues, baseline_root),
         "_tables": tables, "_scenario": scenario,
     }
 
@@ -614,8 +797,9 @@ def execution(scenario: dict) -> dict:
 
 
 def transaction_summary(data_dir: Path) -> list[dict] | None:
-    path = data_dir / "transaction_summary.csv"
-    return load_csv(path) if path.exists() else None
+    """Validated run-level summary for a run folder (see load_summary)."""
+    scenario = json.loads((data_dir / "scenario.json").read_text())
+    return load_summary(data_dir, scenario, [])
 
 
 def errors_by_type(tables: dict, windows) -> dict | None:
@@ -646,12 +830,22 @@ def steady_tps(rows: list[dict], lo: int, hi: int) -> float:
     return round(statistics.fmean(v / 60 for v in per_min.values()), 1) if per_min else None
 
 
+def ceiling(u: float, x: float) -> dict:
+    """Utilization Law: D = U / X; CPU-bound ceiling = 80 / D. Undefined when CPU or throughput is zero."""
+    d = u / x if x else None
+    return {"mean_cpu_pct": round(u, 1), "tps_handled": round(x, 1),
+            "cpu_pct_per_tps": round(d, 3) if d is not None else None,
+            "cpu_bound_ceiling_tps": round(80 / d, 1) if d else None,
+            "ceiling_note": "" if d else "undefined: CPU or throughput is zero in this window"}
+
+
 def capacity(tables: dict, windows) -> dict:
     """CPU-bound throughput ceiling per tier (Utilization Law, U = X * D). A conditional estimate.
 
     It answers: if CPU were the only limit, how much throughput would this tier reach at 80% CPU?
     It is not the tier's capacity. Any other saturated resource (connection pool, threads,
-    pool wait) caps throughput first, and each window lists the ones seen.
+    pool wait) caps throughput first, and each window lists the ones seen. CPU and throughput are
+    paired by minute: only minutes with both a CPU reading and transactions are used.
     """
     tx = tables.get("transactions.csv", [])
     tps = defaultdict(float)
@@ -666,14 +860,10 @@ def capacity(tables: dict, windows) -> dict:
            "windows": {}}
     for lo, hi in windows:
         res = {}
-        mins = [m for m in tps if lo <= m <= hi and tps[m] > 0]
-        if not mins:
+        if not any(lo <= m <= hi and tps[m] > 0 for m in tps):
             continue
-        x = statistics.fmean(tps[m] for m in mins)
-        share = x / len(nodes) if nodes else x
         for node in nodes:
             rows = [r for r in app if r["node"] == node and lo <= int(r["elapsed_min"]) <= hi]
-            cpus = [v for v in (num(r.get("cpu_pct")) for r in rows) if v is not None]
             limits = []
             pool_full = [r for r in rows if num(r.get("db_pool_active")) is not None and num(r.get("db_pool_max"))
                          and num(r["db_pool_active"]) >= num(r["db_pool_max"])]
@@ -686,42 +876,60 @@ def capacity(tables: dict, windows) -> dict:
                     and num(r["active_threads"]) >= 0.9 * num(r["max_threads"])]
             if busy:
                 limits.append(f"threads at 90% or more of maximum in {len(busy)} minutes")
-            if cpus:
-                u = statistics.fmean(cpus)
-                d = u / share
-                res[node] = {"mean_cpu_pct": round(u, 1), "tps_handled": round(share, 1),
-                             "cpu_pct_per_tps": round(d, 3), "cpu_bound_ceiling_tps": round(80 / d, 1),
-                             "other_limits_seen": limits,
+            paired = [(num(r.get("cpu_pct")), tps[int(r["elapsed_min"])] / len(nodes)) for r in rows
+                      if num(r.get("cpu_pct")) is not None and tps.get(int(r["elapsed_min"]), 0) > 0]
+            if paired:
+                res[node] = {**ceiling(statistics.fmean(u for u, _ in paired), statistics.fmean(x for _, x in paired)),
+                             "minutes_used": len(paired), "other_limits_seen": limits,
                              "other_monitored_limit_detected": bool(limits)}
-        cpus = [v for v in (num(r.get("cpu_pct")) for r in tables.get("database.csv", [])
-                            if lo <= int(r["elapsed_min"]) <= hi) if v is not None]
-        if cpus:
-            u = statistics.fmean(cpus)
-            d = u / x
-            res["database"] = {"mean_cpu_pct": round(u, 1), "tps_handled": round(x, 1),
-                               "cpu_pct_per_tps": round(d, 3), "cpu_bound_ceiling_tps": round(80 / d, 1),
-                               "other_limits_seen": [], "other_monitored_limit_detected": None}
+        paired = [(num(r.get("cpu_pct")), tps[int(r["elapsed_min"])]) for r in tables.get("database.csv", [])
+                  if lo <= int(r["elapsed_min"]) <= hi and num(r.get("cpu_pct")) is not None
+                  and tps.get(int(r["elapsed_min"]), 0) > 0]
+        if paired:
+            res["database"] = {**ceiling(statistics.fmean(u for u, _ in paired), statistics.fmean(x for _, x in paired)),
+                               "minutes_used": len(paired), "other_limits_seen": [],
+                               "other_monitored_limit_detected": None}
         out["windows"][f"min {lo}-{hi}"] = res
     return out
 
 
-def baseline_comparison(data_dir: Path, scenario: dict, tables: dict) -> dict | None:
+def baseline_comparison(data_dir: Path, scenario: dict, tables: dict, summary: list[dict] | None,
+                        issues: list[dict], baseline_root: Path | None = None) -> dict | None:
+    """Compare this run with its baseline. The baseline is loaded and checked the same way as this run."""
     b = scenario.get("baseline")
     if not b:
         return None
-    bdir = (data_dir / b["data_dir"]).resolve()
-    base = transaction_summary(bdir)
-    cur = transaction_summary(data_dir)
-    if not base or not cur:
-        return {"run_id": b["run_id"], "available": False}
-    thr = b.get("regression_threshold_pct", 10)
+    head = {"run_id": b.get("run_id"), "build": b.get("build")}
+    root = (baseline_root or data_dir.resolve().parent.parent).resolve()
+    bdir = (data_dir / str(b.get("data_dir", ""))).resolve()
+    if not bdir.is_relative_to(root):
+        return {**head, "available": False, "reason": f"baseline folder is outside the allowed root {root}; not read"}
+    try:
+        bsc, btables, bissues = load_run(bdir)
+    except (InputError, OSError) as e:
+        return {**head, "available": False, "reason": f"baseline run cannot be loaded: {e}"}
+    bsummary = load_summary(bdir, bsc, bissues)
+    if not bsummary or not summary:
+        return {**head, "available": False,
+                "reason": "run-level transaction summary missing or unusable in " + ("the baseline" if not bsummary else "this run")}
+    thr = num(b.get("regression_threshold_pct", 10))
     lo, hi = scenario["workload_model"]["steady_state_min"]
-    reasons = comparability_problems(scenario, tables, bdir)
-    bt = steady_tps(load_csv(bdir / "transactions.csv"), lo, hi)
+    reasons = comparability_problems(scenario, tables, bsc, btables)
+    if reconcile_with_summary(tables["transactions.csv"], summary, lo, hi):
+        reasons.append("this run's summary does not match its per-minute data")
+    blo, bhi = bsc["workload_model"]["steady_state_min"]
+    if reconcile_with_summary(btables["transactions.csv"], bsummary, blo, bhi):
+        reasons.append("the baseline summary does not match its per-minute data")
+    for label, iss in (("this run", issues), ("the baseline", bissues)):
+        bad = [i for i in iss if i["file"] in ("transactions.csv", "vusers.csv", "transaction_summary.csv")
+               and ("missing" in i["message"] or "not used" in i["message"])]
+        if bad:
+            reasons.append(f"{len(bad)} data-quality problem(s) in {label}'s transaction, Vuser or summary data")
+    bt = steady_tps(btables["transactions.csv"], blo, bhi)
     ct = steady_tps(tables["transactions.csv"], lo, hi)
     rows = []
-    bmap = {(r["generator"], r["transaction"]): r for r in base}
-    for r in cur:
+    bmap = {(r["generator"], r["transaction"]): r for r in bsummary}
+    for r in summary:
         if r["generator"] != "ALL":
             continue
         br = bmap.get(("ALL", r["transaction"]))
@@ -730,18 +938,20 @@ def baseline_comparison(data_dir: Path, scenario: dict, tables: dict) -> dict | 
                          "slower_than_threshold": None})
             continue
         row = {"transaction": r["transaction"]}
+        raw = {}
         for c in ("avg_s", "p90_s", "p95_s", "p99_s"):
             bv, cv = num(br.get(c)), num(r.get(c))
-            change = round(100 * (cv - bv) / bv, 1) if bv and cv is not None else None
-            row[c] = {"baseline": bv, "current": cv, "change_pct": change}
+            raw[c] = 100 * (cv - bv) / bv if bv and cv is not None else None
+            row[c] = {"baseline": bv, "current": cv,
+                      "change_pct": round(raw[c], 1) if raw[c] is not None else None}  # display only
         row["error_pct"] = {"baseline": num(br.get("error_pct")), "current": num(r.get("error_pct"))}
-        changes = [row[c]["change_pct"] for c in ("p90_s", "p95_s")]
-        slower = None if None in changes else any(ch > thr for ch in changes)
-        row["slower_than_threshold"] = slower
+        changes = [raw[c] for c in ("p90_s", "p95_s")]  # the threshold is checked at full precision
+        # Rounded to 9 decimals only to remove binary floating-point noise (1.1 / 1.0 is 10.000000000000009%).
+        slower = None if None in changes or thr is None else any(round(ch, 9) > thr for ch in changes)
         row["slower_than_threshold"] = slower
         row["regression"] = slower if not reasons and slower is not None else None
         rows.append(row)
-    return {"run_id": b["run_id"], "build": b.get("build"), "available": True, "threshold_pct": thr,
+    return {**head, "available": True, "threshold_pct": thr,
             "comparable": not reasons, "not_comparable_because": reasons,
             "steady_tps": {"baseline": bt, "current": ct,
                            "change_pct": round(100 * (ct - bt) / bt, 1) if bt and ct else None},
@@ -750,51 +960,59 @@ def baseline_comparison(data_dir: Path, scenario: dict, tables: dict) -> dict | 
                     "in this run."}
 
 
-def comparability_problems(scenario: dict, tables: dict, bdir: Path) -> list[str]:
+def load_coverage(sc: dict, tbls: dict) -> tuple[list[int], list[str], list[int]]:
+    """Steady-state minutes where the planned load did not run, and where transaction data is incomplete.
+
+    Every expected load generator must have a Vuser row, scheduled Vusers must add up to the planned
+    total, running must equal scheduled, and every generator must report every declared transaction.
+    """
+    wm = sc["workload_model"]
+    lo, hi = wm["steady_state_min"]
+    gens = sorted(g for g in wm["users"] if g != "total")
+    planned = wm["users"].get("total", sum(wm["users"][g] for g in gens))
+    vus = {(int(r["elapsed_min"]), r["generator"]): r for r in tbls["vusers.csv"]}
+    pairs = {(int(r["elapsed_min"]), r["generator"], r["transaction"]) for r in tbls["transactions.csv"]}
+    short, why, tx_gaps = [], [], []
+    for m in range(lo, hi + 1):
+        rows = [vus.get((m, g)) for g in gens]
+        absent = [g for g, r in zip(gens, rows) if r is None]
+        present = [r for r in rows if r is not None]
+        sched = sum(int(r["scheduled_vusers"]) for r in present)
+        running = sum(int(r["running_vusers"]) for r in present)
+        if absent or sched != planned or running < sched:
+            short.append(m)
+            if not why:
+                why.append(f"minute {m}: " + (f"{', '.join(absent)} missing; " if absent else "")
+                           + f"{running} running, {sched} scheduled, {planned} planned")
+        if any((m, g, t) not in pairs for g in gens for t in wm["transactions"]):
+            tx_gaps.append(m)
+    return short, why, tx_gaps
+
+
+def comparability_problems(scenario: dict, tables: dict, base: dict, btables: dict) -> list[str]:
     """Reasons the baseline comparison cannot be used as a regression verdict.
 
-    The tool cannot judge test validity; it checks what it can: same test design and
-    environment, the planned load actually running in both runs, and complete data.
+    The tool cannot judge test validity; it checks what it can: same test design and environment,
+    the same transaction mix, the planned load actually running on every expected load generator in
+    both runs, and complete data.
     """
     reasons = []
-    try:
-        base = json.loads((bdir / "scenario.json").read_text())
-    except (OSError, json.JSONDecodeError):
-        return ["baseline scenario.json not readable"]
     if scenario.get("test_type") != base.get("test_type"):
         reasons.append(f"test type differs ({base.get('test_type')} vs {scenario.get('test_type')})")
-    for k in ("users", "pacing", "iteration", "steady_state_min"):
+    for k in ("users", "pacing", "iteration", "steady_state_min", "transactions"):
         if scenario["workload_model"].get(k) != base.get("workload_model", {}).get(k):
             reasons.append(f"workload model differs: {k}")
     if scenario["run"].get("environment") != base.get("run", {}).get("environment"):
         reasons.append("different test environment")
     if scenario.get("environment_parity") != base.get("environment_parity"):
         reasons.append("environment parity description differs")
-    lo, hi = scenario["workload_model"]["steady_state_min"]
-
-    def short(rows):
-        per = defaultdict(lambda: [0, 0])
-        for r in rows:
-            m = int(r["elapsed_min"])
-            if lo <= m <= hi:
-                per[m][0] += int(r["scheduled_vusers"])
-                per[m][1] += int(r["running_vusers"])
-        return [m for m in range(lo, hi + 1) if m not in per or per[m][1] < per[m][0]]
-
-    cur_short = short(tables["vusers.csv"])
-    if cur_short:
-        reasons.append(f"planned load not running in this run for {len(cur_short)} steady-state minutes "
-                       f"(first at minute {cur_short[0]})")
-    try:
-        b_short = short(load_csv(bdir / "vusers.csv"))
-        if b_short:
-            reasons.append(f"planned load not running in the baseline for {len(b_short)} steady-state minutes")
-    except OSError:
-        reasons.append("baseline vusers.csv not readable")
-    present = {int(r["elapsed_min"]) for r in tables["transactions.csv"]}
-    gaps = [m for m in range(lo, hi + 1) if m not in present]
-    if gaps:
-        reasons.append(f"transaction data missing for steady-state minutes {gaps}")
+    for label, sc, tb in (("this run", scenario, tables), ("the baseline", base, btables)):
+        short, why, tx_gaps = load_coverage(sc, tb)
+        if short:
+            reasons.append(f"planned load not running in {label} for {len(short)} steady-state minutes "
+                           f"(first at {why[0]})")
+        if tx_gaps:
+            reasons.append(f"transaction data incomplete in {label} for steady-state minutes {tx_gaps}")
     return reasons
 
 
@@ -803,11 +1021,24 @@ SERIES = ["#2a78d6", "#eb6834", "#1baf7a"]  # categorical slots 1-3 of the refer
 INK, INK2, GRID, SURFACE = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
 
 
+def esc(text) -> str:
+    """Escape text for SVG element content and attribute values."""
+    return _xml_escape(str(text), {'"': "&quot;"})
+
+
+def safe_name(text: str) -> str:
+    """A file name part made only of letters, digits, hyphens and underscores."""
+    return re.sub(r"[^A-Za-z0-9_-]+", "_", text).strip("_") or "chart"
+
+
 def svg_line_chart(path: Path, title: str, series: dict, y_label: str, threshold=None,
                    steady=None, x_max=44) -> None:
     W, H, L, R_, T, B = 720, 300, 56, 16, 52, 40
+    title, y_label = esc(title), esc(y_label)
+    if threshold:
+        threshold = (threshold[0], esc(threshold[1]))
     ys = [y for pts in series.values() for _, y in pts if y is not None]
-    raw = max(ys + ([threshold[0]] if threshold else [])) * 1.08 or 1
+    raw = max(ys + ([threshold[0]] if threshold else []) + [0]) * 1.08 or 1
     mag = 10 ** math.floor(math.log10(raw / 4))
     step = next(m * mag for m in (1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10) if m * mag * 4 >= raw)
     y_max = step * 4
@@ -853,13 +1084,14 @@ def svg_line_chart(path: Path, title: str, series: dict, y_label: str, threshold
             o.append(f'<polyline points="{" ".join(sg)}" fill="none" stroke="{c}" stroke-width="2" '
                      f'stroke-linejoin="round" stroke-linecap="round"/>')
         o.append(f'<rect x="{lx}" y="30" width="12" height="3" rx="1.5" fill="{c}"/>')
-        o.append(f'<text x="{lx + 16}" y="35" font-size="11" fill="{INK}">{name}</text>')
+        o.append(f'<text x="{lx + 16}" y="35" font-size="11" fill="{INK}">{esc(name)}</text>')
         lx += 24 + 7 * len(name)
     o.append("</svg>")
     path.write_text("\n".join(o) + "\n")
 
 
 def write_charts(f: dict, out_dir: Path) -> list[tuple[str, str]]:
+    """Write the standard graphs. A graph that cannot be drawn is skipped and reported in input_checks."""
     out_dir.mkdir(parents=True, exist_ok=True)
     t = f["_tables"]
     sc = f["_scenario"]
@@ -871,28 +1103,31 @@ def write_charts(f: dict, out_dir: Path) -> list[tuple[str, str]]:
         d = defaultdict(float) if agg else {}
         for r in rows:
             if r["generator"] == gen and (tx is None or r["transaction"] == tx):
-                v = num(r[col])
+                v = num(r.get(col))
                 if agg:
                     d[int(r["elapsed_min"])] += v or 0
                 else:
                     d[int(r["elapsed_min"])] = v
         return sorted(d.items())
 
-    slas = sc.get("slas", [])
-    rt = next((x for x in slas if x.get("type") == "response_time" and "transaction" in x), None)
-    tp = next((x for x in slas if x.get("type") == "throughput" and num(x.get("value")) is not None), None)
-    tx_name = rt["transaction"] if rt else "checkout"
-    stat = rt.get("statistic", "p95_s") if rt else "p95_s"
-    stat_label = stat.replace("_s", "")
+    # Only SLAs the tool could evaluate are drawn as threshold lines.
+    usable = [x for sid, x in ((k, v["definition"]) for k, v in f["sla_results"]["slas"].items())
+              if not sla_problem(x, t) and not f["sla_results"]["slas"][sid]["reason"].startswith("SLA id")]
+    rt = next((x for x in usable if x["type"] == "response_time"), None)
+    tp = next((x for x in usable if x["type"] == "throughput"), None)
+    declared = sc["workload_model"]["transactions"]
+    tx_name = rt["transaction"] if rt else ("checkout" if "checkout" in declared else declared[0])
+    stat = rt["statistic"] if rt else "p95_s"
+    stat_label = stat.removesuffix("_s")
     charts = [
         ("running-vusers.svg", "Running Vusers by load generator",
          {g: by_gen(t["vusers.csv"], "running_vusers", g) for g in gens}, "Vusers", None),
         ("throughput.svg", "Throughput (all transactions)",
          {"Total TPS": [(m["elapsed_min"], m["tps"]) for m in f["load_profile"]["minutes"]]}, "Transactions/s",
-         (float(tp["value"]), f"{tp['id']}: {tp['threshold']}") if tp else None),
-        (f"{tx_name}-{stat_label}.svg", f"{tx_name.capitalize()} {stat_label} response time by load generator",
+         (float(tp["value"]), f"{tp['id']}: {tp.get('threshold', '')}") if tp else None),
+        (f"{safe_name(tx_name)}-{safe_name(stat_label)}.svg", f"{tx_name.capitalize()} {stat_label} response time by load generator",
          {g: by_gen(t["transactions.csv"], stat, g, tx_name) for g in gens}, "Seconds",
-         (float(rt["value"]), f"{rt['id']}: {rt['threshold']}") if rt else None),
+         (float(rt["value"]), f"{rt['id']}: {rt.get('threshold', '')}") if rt else None),
     ]
     if t["transactions.csv"] and "failed_timeout" in t["transactions.csv"][0]:
         err = {}
@@ -903,8 +1138,19 @@ def write_charts(f: dict, out_dir: Path) -> list[tuple[str, str]]:
                 d[int(r["elapsed_min"])] += int(r[col])
             err[name] = sorted(d.items())
         charts.append(("errors.svg", "Failed transactions per minute by type", err, "Failures/minute", None))
+    root = out_dir.resolve()
     for name, title, series, ylab, thr in charts:
-        svg_line_chart(out_dir / name, title, series, ylab, threshold=thr, steady=steady)
+        target = (out_dir / name).resolve()
+        if target.parent != root:
+            f["input_checks"].append({"level": "warning", "file": name, "line": None,
+                                      "message": "graph file name resolves outside the graphs folder; not written"})
+            continue
+        try:
+            svg_line_chart(target, title, series, ylab, threshold=thr, steady=steady)
+        except (KeyError, ValueError, TypeError, ZeroDivisionError) as e:
+            f["input_checks"].append({"level": "warning", "file": name, "line": None,
+                                      "message": f"graph not drawn: {type(e).__name__}: {e}"})
+            continue
         made.append((title, name))
     return made
 
@@ -980,18 +1226,20 @@ def overview_markdown(f: dict, charts=None) -> list[str]:
               "| Load generator | Transaction | Count | Passed | Failed | Error % | Min | Avg | p90 | p95 | p99 | Max | Std dev |",
               "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
         for r in ts:
-            L.append(f"| {r['generator']} | {r['transaction']} | {r['count']} | {r['passed']} | {r['failed']} | "
-                     f"{r['error_pct']} | {r['min_s']} | {r['avg_s']} | {r['p90_s']} | {r['p95_s']} | {r['p99_s']} | "
-                     f"{r['max_s']} | {r['std_dev_s']} |")
+            L.append("| " + " | ".join(str(r.get(c, "")) for c in (
+                "generator", "transaction", "count", "passed", "failed", "error_pct", "min_s", "avg_s", "p90_s",
+                "p95_s", "p99_s", "max_s", "std_dev_s")) + " |")
         L.append("")
     if charts:
         L += ["## Graphs", ""]
         L += [f"![{title}]({path})" for title, path in charts]
         L.append("")
     bc = f.get("baseline")
+    if bc and not bc.get("available"):
+        L += [f"## Baseline comparison: {bc['run_id']}", "", f"**Not available:** {bc.get('reason', 'baseline data missing')}.", ""]
     if bc and bc.get("available"):
         L += [f"## Baseline comparison: {bc['run_id']} (build {bc['build']})", "",
-              f"{bc['note']} A transaction is flagged when p90 or p95 is more than {bc['threshold_pct']}% "
+              f"{bc['note']} A transaction is flagged when p90 or p95 is more than {bc['threshold_pct']:g}% "
               "slower than the baseline.", ""]
         if bc["comparable"]:
             L += ["**Comparable:** same test design and environment, planned load running in both runs, complete "
@@ -1040,8 +1288,9 @@ def overview_markdown(f: dict, charts=None) -> list[str]:
                     else "not checked")
                 if v["other_limits_seen"]:
                     other = f"**{other}: CPU is not the limiting resource; ceiling does not apply**"
+                ceil = v["cpu_bound_ceiling_tps"] if v["cpu_bound_ceiling_tps"] is not None else v["ceiling_note"]
                 L.append(f"| {w} | {tier} | {v['mean_cpu_pct']} | {v['tps_handled']} | {v['cpu_pct_per_tps']} | "
-                         f"{v['cpu_bound_ceiling_tps']} | {other} |")
+                         f"{ceil} | {other} |")
         L.append("")
     return L
 
@@ -1083,7 +1332,7 @@ def to_markdown(f: dict, charts=None) -> str:
         L.append(f"- {g}: " + ", ".join(f"{m}:{v}" for m, v in d.items()))
     a = f["sla_results"]
     L += ["", "## SLA results (steady state)", "",
-          f"{a['note']} First minute any SLA failed: {a['first_failing_minute']}.", "",
+          f"**{a['status'].capitalize()}.** {a['note']} First minute any SLA failed: {a['first_failing_minute']}.", "",
           "| SLA | Metric | Threshold | Evaluation | Result | Minutes Pass / Fail / Not evaluated | Window value | Notes |",
           "| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for sid, v in a["slas"].items():
@@ -1145,12 +1394,17 @@ def main():
     ap.add_argument("--md", type=Path, help="write markdown to this file instead of stdout")
     ap.add_argument("--charts", type=Path, help="write SVG graphs to this folder (linked from the markdown)")
     ap.add_argument("--sections", type=Path, help="also write the summary split into section files in this folder")
+    ap.add_argument("--baseline-root", type=Path,
+                    help="folder the baseline run must be inside (default: two levels above data_dir)")
     args = ap.parse_args()
     wins = [tuple(int(x) for x in w.split("-")) for w in args.windows] if args.windows else None
     try:
-        facts = analyze(args.data_dir, wins)
+        facts = analyze(args.data_dir, wins, args.baseline_root)
     except InputError as e:
         raise SystemExit(f"Cannot analyze {args.data_dir}: {e}")
+    except (KeyError, ValueError, TypeError, ZeroDivisionError, OSError) as e:
+        raise SystemExit(f"Cannot analyze {args.data_dir}: unexpected data problem ({type(e).__name__}: {e}). "
+                         "No output was written.")
     charts = None
     if args.charts:
         made = write_charts(facts, args.charts)

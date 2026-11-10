@@ -798,6 +798,7 @@
     "littles_law_note": "implied_cycle_s = running users / iterations per second (one checkout per iteration). With fixed pacing it should equal the pacing interval; a larger value means iterations are running late (responses + think time exceed pacing)."
   },
   "sla_results": {
+    "status": "candidate results, pending the test validity result",
     "steady_state_min": [
       10,
       39
@@ -4088,7 +4089,8 @@
       "p95_s": "3.59",
       "p99_s": "4.74",
       "max_s": "9.17",
-      "std_dev_s": "1.06"
+      "std_dev_s": "1.06",
+      "_line": 2
     },
     {
       "steady_state_min": "10-39",
@@ -4104,7 +4106,8 @@
       "p95_s": "3.09",
       "p99_s": "4.06",
       "max_s": "7.60",
-      "std_dev_s": "0.95"
+      "std_dev_s": "0.95",
+      "_line": 3
     },
     {
       "steady_state_min": "10-39",
@@ -4120,7 +4123,8 @@
       "p95_s": "6.24",
       "p99_s": "8.10",
       "max_s": "16.82",
-      "std_dev_s": "1.89"
+      "std_dev_s": "1.89",
+      "_line": 4
     },
     {
       "steady_state_min": "10-39",
@@ -4136,7 +4140,8 @@
       "p95_s": "3.60",
       "p99_s": "4.75",
       "max_s": "9.69",
-      "std_dev_s": "1.07"
+      "std_dev_s": "1.07",
+      "_line": 5
     },
     {
       "steady_state_min": "10-39",
@@ -4152,7 +4157,8 @@
       "p95_s": "3.06",
       "p99_s": "4.00",
       "max_s": "7.77",
-      "std_dev_s": "0.94"
+      "std_dev_s": "0.94",
+      "_line": 6
     },
     {
       "steady_state_min": "10-39",
@@ -4168,7 +4174,8 @@
       "p95_s": "6.33",
       "p99_s": "8.24",
       "max_s": "15.65",
-      "std_dev_s": "1.93"
+      "std_dev_s": "1.93",
+      "_line": 7
     },
     {
       "steady_state_min": "10-39",
@@ -4184,7 +4191,8 @@
       "p95_s": "3.60",
       "p99_s": "4.74",
       "max_s": "9.69",
-      "std_dev_s": "1.07"
+      "std_dev_s": "1.07",
+      "_line": 8
     },
     {
       "steady_state_min": "10-39",
@@ -4200,7 +4208,8 @@
       "p95_s": "3.07",
       "p99_s": "4.03",
       "max_s": "7.77",
-      "std_dev_s": "0.95"
+      "std_dev_s": "0.95",
+      "_line": 9
     },
     {
       "steady_state_min": "10-39",
@@ -4216,7 +4225,8 @@
       "p95_s": "6.28",
       "p99_s": "8.19",
       "max_s": "16.82",
-      "std_dev_s": "1.91"
+      "std_dev_s": "1.91",
+      "_line": 10
     }
   ],
   "errors_by_type": {
@@ -4295,6 +4305,8 @@
           "tps_handled": 27.5,
           "cpu_pct_per_tps": 1.205,
           "cpu_bound_ceiling_tps": 66.4,
+          "ceiling_note": "",
+          "minutes_used": 10,
           "other_limits_seen": [],
           "other_monitored_limit_detected": false
         },
@@ -4303,6 +4315,8 @@
           "tps_handled": 27.5,
           "cpu_pct_per_tps": 1.214,
           "cpu_bound_ceiling_tps": 65.9,
+          "ceiling_note": "",
+          "minutes_used": 10,
           "other_limits_seen": [],
           "other_monitored_limit_detected": false
         },
@@ -4311,6 +4325,8 @@
           "tps_handled": 55.0,
           "cpu_pct_per_tps": 0.329,
           "cpu_bound_ceiling_tps": 242.9,
+          "ceiling_note": "",
+          "minutes_used": 10,
           "other_limits_seen": [],
           "other_monitored_limit_detected": null
         }
@@ -4321,6 +4337,8 @@
           "tps_handled": 49.9,
           "cpu_pct_per_tps": 1.058,
           "cpu_bound_ceiling_tps": 75.6,
+          "ceiling_note": "",
+          "minutes_used": 9,
           "other_limits_seen": [],
           "other_monitored_limit_detected": false
         },
@@ -4329,6 +4347,8 @@
           "tps_handled": 49.9,
           "cpu_pct_per_tps": 1.057,
           "cpu_bound_ceiling_tps": 75.7,
+          "ceiling_note": "",
+          "minutes_used": 9,
           "other_limits_seen": [],
           "other_monitored_limit_detected": false
         },
@@ -4337,6 +4357,8 @@
           "tps_handled": 99.8,
           "cpu_pct_per_tps": 0.28,
           "cpu_bound_ceiling_tps": 286.0,
+          "ceiling_note": "",
+          "minutes_used": 9,
           "other_limits_seen": [],
           "other_monitored_limit_detected": null
         }
@@ -4347,6 +4369,8 @@
           "tps_handled": 45.0,
           "cpu_pct_per_tps": 1.168,
           "cpu_bound_ceiling_tps": 68.5,
+          "ceiling_note": "",
+          "minutes_used": 21,
           "other_limits_seen": [
             "DB connection pool at its maximum in 20 of 21 minutes",
             "mean DB pool wait 1411 ms",
@@ -4359,6 +4383,8 @@
           "tps_handled": 45.0,
           "cpu_pct_per_tps": 1.072,
           "cpu_bound_ceiling_tps": 74.6,
+          "ceiling_note": "",
+          "minutes_used": 21,
           "other_limits_seen": [
             "DB connection pool at its maximum in 20 of 21 minutes",
             "mean DB pool wait 1396 ms",
@@ -4371,32 +4397,40 @@
           "tps_handled": 90.0,
           "cpu_pct_per_tps": 0.324,
           "cpu_bound_ceiling_tps": 247.2,
+          "ceiling_note": "",
+          "minutes_used": 21,
           "other_limits_seen": [],
           "other_monitored_limit_detected": null
         }
       },
       "min 40-44": {
         "app1": {
-          "mean_cpu_pct": 25.8,
+          "mean_cpu_pct": 30.2,
           "tps_handled": 25.1,
-          "cpu_pct_per_tps": 1.027,
-          "cpu_bound_ceiling_tps": 77.9,
+          "cpu_pct_per_tps": 1.201,
+          "cpu_bound_ceiling_tps": 66.6,
+          "ceiling_note": "",
+          "minutes_used": 4,
           "other_limits_seen": [],
           "other_monitored_limit_detected": false
         },
         "app2": {
-          "mean_cpu_pct": 26.6,
+          "mean_cpu_pct": 31.0,
           "tps_handled": 25.1,
-          "cpu_pct_per_tps": 1.058,
-          "cpu_bound_ceiling_tps": 75.6,
+          "cpu_pct_per_tps": 1.236,
+          "cpu_bound_ceiling_tps": 64.7,
+          "ceiling_note": "",
+          "minutes_used": 4,
           "other_limits_seen": [],
           "other_monitored_limit_detected": false
         },
         "database": {
-          "mean_cpu_pct": 14.5,
+          "mean_cpu_pct": 16.4,
           "tps_handled": 50.2,
-          "cpu_pct_per_tps": 0.289,
-          "cpu_bound_ceiling_tps": 276.4,
+          "cpu_pct_per_tps": 0.327,
+          "cpu_bound_ceiling_tps": 244.7,
+          "ceiling_note": "",
+          "minutes_used": 4,
           "other_limits_seen": [],
           "other_monitored_limit_detected": null
         }
@@ -4407,7 +4441,7 @@
     "run_id": "SYN-RUN-000",
     "build": "4.12.0",
     "available": true,
-    "threshold_pct": 10,
+    "threshold_pct": 10.0,
     "comparable": true,
     "not_comparable_because": [],
     "steady_tps": {

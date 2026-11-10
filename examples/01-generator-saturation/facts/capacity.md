@@ -19,8 +19,8 @@ Utilization Law (U = X × D): CPU % per transaction/s, and the throughput each t
 | min 10-15 | app2 | 54.6 | 50.1 | 1.091 | 73.3 | no other monitored limit detected |
 | min 10-15 | database | 30.0 | 100.2 | 0.3 | 267.0 | not checked |
 | min 16-39 | app1 | 40.6 | 34.6 | 1.173 | 68.2 | no other monitored limit detected |
-| min 16-39 | app2 | 41.0 | 34.6 | 1.185 | 67.5 | no other monitored limit detected |
+| min 16-39 | app2 | 41.0 | 34.8 | 1.177 | 68.0 | no other monitored limit detected |
 | min 16-39 | database | 25.5 | 69.2 | 0.369 | 217.1 | not checked |
-| min 40-44 | app1 | 23.4 | 19.7 | 1.184 | 67.6 | no other monitored limit detected |
-| min 40-44 | app2 | 22.9 | 19.7 | 1.16 | 69.0 | no other monitored limit detected |
-| min 40-44 | database | 13.4 | 39.5 | 0.34 | 235.4 | not checked |
+| min 40-44 | app1 | 27.4 | 19.7 | 1.387 | 57.7 | no other monitored limit detected |
+| min 40-44 | app2 | 27.1 | 19.7 | 1.372 | 58.3 | no other monitored limit detected |
+| min 40-44 | database | 15.6 | 39.5 | 0.396 | 202.2 | not checked |

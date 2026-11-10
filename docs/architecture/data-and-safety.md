@@ -16,4 +16,4 @@ The agents analyze results and make recommendations. No agent starts a load test
 
 ## Execution transparency
 
-Every handoff file records how the agent ran: as a sub-agent with its own context, and on which model. Test summaries state that all agents share one model and that each agent's file inputs were instructions, not sandboxed.
+Every handoff file records how the agent ran: as a sub-agent with its own context, and on which model. Test summaries state which model each agent ran on (three roles are routed to Sonnet; the others inherit the runner's model) and that each agent's file inputs were instructions, not sandboxed.
