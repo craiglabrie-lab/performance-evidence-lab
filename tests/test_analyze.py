@@ -118,3 +118,16 @@ def test_draft_handoff_example_validates_against_draft_schema():
     jsonschema.Draft202012Validator.check_schema(schema)
     example = json.loads((ROOT / "schemas" / "examples" / "03-test-execution.example.json").read_text())
     jsonschema.validate(example, schema)
+
+
+def test_sections_split_the_summary_without_losing_content(tmp_path):
+    facts = analyze.analyze(S2)
+    md = analyze.to_markdown(facts, [("Throughput", "charts/throughput.svg")])
+    written = analyze.write_sections(md, tmp_path / "facts", tmp_path)
+    assert {"overview.md", "load-profile.md", "capacity.md", "inventory.md", "metrics-app_servers.md"} <= set(written)
+    overview = (tmp_path / "facts" / "overview.md").read_text()
+    assert "## Transaction summary" in overview and "## SLA results" in overview
+    assert "](../charts/throughput.svg)" in overview
+    body_lines = {ln for ln in md.splitlines() if ln.startswith("| ")}
+    split_lines = {ln for f in written for ln in (tmp_path / "facts" / f).read_text().splitlines() if ln.startswith("| ")}
+    assert body_lines <= split_lines

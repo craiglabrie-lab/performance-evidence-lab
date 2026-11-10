@@ -16,7 +16,7 @@ A test run folder containing `data/scenario.json` (run identity, test objective,
    - calculates Utilization Law service demand and CPU headroom per tier;
    - draws the standard graphs: running Vusers, throughput, checkout p95 and errors over time.
 
-   It writes `facts.md`, `facts.json` and `charts/*.svg`.
+   It writes `facts.md`, `facts.json`, `charts/*.svg`, and the same summary split into section files in `facts/`, so each agent reads only its slice.
 2. **Agents.** The runner dispatches each agent to its own Claude Code sub-agent, defined in [`.claude/agents/`](../../.claude/agents/), in this order. Each agent reads its role file, the workflow files and only the inputs listed for its step, and writes one handoff file into `run/`.
 
 | Step | Agent | Inputs | Output |

@@ -17,6 +17,7 @@ Three synthetic load tests of the same invented checkout service. The data is ge
 | `data/transaction_summary.csv` | The load tool's run-level transaction summary for the steady state |
 | `data/*.csv`, `data/*.log` | Vusers, load generator health, app servers, database, network, and (runs 00 and 02) outbound calls and APM traces |
 | `facts.md`, `facts.json` | The computed results summary from `tools/analyze.py` |
+| `facts/` | The same summary split into section files, one slice per agent |
 | `charts/` | Running Vusers, throughput, checkout p95 and errors over time |
 
 Recorded agent runs (`run/` with every handoff file, and `TEST-SUMMARY.md`) will be added in a later stage. To run the analysis yourself with Claude Code:

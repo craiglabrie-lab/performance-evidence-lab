@@ -10,3 +10,4 @@
 | [0006](0006-reference-runtime.md) | Claude Code sub-agents as the reference runtime | Accepted |
 | [0007](0007-synthetic-test-runs.md) | Synthetic test runs with an answer key written in advance | Accepted |
 | [0008](0008-mit-license.md) | MIT License for original materials | Accepted |
+| [0009](0009-cost-controls.md) | Cost controls: context slices, model routing, lean instructions, one test run first | Accepted |

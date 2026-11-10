@@ -35,3 +35,5 @@ Execution: sub-agent with its own context, model <name/version>
 ```
 
 Every file ends with a **Handoff** section: what the next agent needs to know, and any open questions.
+
+Keep each handoff file to about 150 lines. Cite record IDs and `facts/` sections instead of copying tables from them.

@@ -25,7 +25,7 @@ What it never does:
 Usage:
   python tools/analyze.py examples/01-generator-saturation/data
   python tools/analyze.py <data_dir> --windows 10-16 17-39 --json facts.json
-  python tools/analyze.py <data_dir> --md facts.md --charts charts
+  python tools/analyze.py <data_dir> --md facts.md --charts charts --sections facts
 
 Standard library only.
 """
@@ -525,6 +525,43 @@ def write_charts(f: dict, out_dir: Path) -> list[tuple[str, str]]:
     return made
 
 
+# ------------------------------------------------------------------ sections
+SECTION_MAP = {
+    "Test run overview": "overview.md", "Transaction summary": "overview.md", "Graphs": "overview.md",
+    "Baseline comparison": "overview.md", "Errors by type": "overview.md", "SLA results": "overview.md",
+    "Load profile by minute": "load-profile.md", "Capacity": "capacity.md",
+    "Data inventory": "inventory.md", "Possible prompt-injection text": "inventory.md",
+    "Checkout trace breakdown": "metrics-checkout_traces.md",
+}
+
+
+def write_sections(md: str, out_dir: Path, md_dir: Path) -> list[str]:
+    """Split the full summary into section files, so each agent reads only what it needs."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    header, _, body = md.partition("\n## ")
+    files = defaultdict(list)
+    for block in ("## " + body).split("\n## "):
+        block = block if block.startswith("## ") else "## " + block
+        title = block[3:].split("\n", 1)[0]
+        if title.startswith("Metrics by time window"):
+            intro, *subs = block.split("\n### ")
+            for sub in subs:
+                name = sub.split("\n", 1)[0].strip()
+                files[f"metrics-{Path(name).stem}.md"].append(f"## Metrics by time window: {name}\n" + sub.split("\n", 1)[1])
+            continue
+        target = next((v for k, v in SECTION_MAP.items() if title.startswith(k)), "overview.md")
+        files[target].append(block)
+    rel = os.path.relpath(md_dir, out_dir)
+    written = []
+    for name, blocks in sorted(files.items()):
+        text = header.strip() + "\n\n" + "\n\n".join(b.strip() for b in blocks) + "\n"
+        if rel != ".":
+            text = text.replace("](charts/", f"]({rel}/charts/")
+        (out_dir / name).write_text(text)
+        written.append(name)
+    return written
+
+
 # ------------------------------------------------------------------ output
 def overview_markdown(f: dict, charts=None) -> list[str]:
     L = []
@@ -671,6 +708,7 @@ def main():
     ap.add_argument("--json", type=Path, help="also write the facts as JSON")
     ap.add_argument("--md", type=Path, help="write markdown to this file instead of stdout")
     ap.add_argument("--charts", type=Path, help="write SVG graphs to this folder (linked from the markdown)")
+    ap.add_argument("--sections", type=Path, help="also write the summary split into section files in this folder")
     args = ap.parse_args()
     wins = [tuple(int(x) for x in w.split("-")) for w in args.windows] if args.windows else None
     facts = analyze(args.data_dir, wins)
@@ -686,6 +724,8 @@ def main():
         args.json.write_text(json.dumps(public, indent=2, default=str) + "\n")
     if args.md:
         args.md.write_text(md)
+    if args.sections:
+        write_sections(md, args.sections, args.md.parent if args.md else Path.cwd())
     else:
         print(md)
 

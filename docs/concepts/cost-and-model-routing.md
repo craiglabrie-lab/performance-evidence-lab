@@ -1,6 +1,13 @@
 # Concept: cost, context and model routing
 
-> **Status: Concept, not yet implemented.** The measurements below come from the earlier recorded runs, kept in this repository's git history, made with a previous version of the agents. Every agent ran on one model and read most of the data. Nothing on this page has been tested.
+> **Status: Partly implemented** ([ADR-0009](../decisions/0009-cost-controls.md)).
+> - **Implemented** (configuration, not yet measured):
+>   - context slices (`tools/analyze.py --sections` and per-step inputs in `/review-run`);
+>   - model routing for three roles in `.claude/agents/`;
+>   - handoff length and tool-call guidance.
+> - **Concept**: prompt caching layout, enforced token budgets, and a different model family for the Peer Reviewer.
+>
+> The measurements below come from the earlier recorded runs, made with a previous version of the agents and kept in this repository's git history.
 
 ## What the earlier runs cost
 
@@ -15,7 +22,7 @@ Every step started by reading the full data set and the earlier handoffs, so eve
 
 ## Design
 
-### 1. Give each agent only its slice of the data
+### 1. Give each agent only its slice of the data (*implemented*)
 
 | Agent | Gets | Does not get |
 | --- | --- | --- |
@@ -28,9 +35,9 @@ Every step started by reading the full data set and the earlier handoffs, so eve
 | Peer Reviewer | Everything, but as structured handoffs ([handoff schema](handoff-schema.md)), not full prose | |
 | Test Report Author | Go/no-go recommendation, transaction summary, graphs, the records the findings cite | Raw data |
 
-The computed results summary would be split into sections, so each agent reads only the sections it needs.
+The computed results summary is split into section files in `facts/` (`overview`, `load-profile`, `capacity`, `inventory`, and one `metrics-*` file per data source). [`/review-run`](../../.claude/commands/review-run.md) lists the sections each step receives.
 
-### 2. Route models by the judgment each role needs
+### 2. Route models by the judgment each role needs (*implemented for the smaller-model tier*)
 
 | Tier | Roles | Why |
 | --- | --- | --- |
@@ -38,11 +45,11 @@ The computed results summary would be split into sections, so each agent reads o
 | Different large model | Peer Reviewer | A reviewer on a different model is less likely to share the team's blind spots |
 | Smaller model | Results & Monitoring Analyst, Results Analyst, Test Report Author | Inventory, description and writing from structured inputs; deterministic checks catch errors |
 
-### 3. Cache what every agent shares
+### 3. Cache what every agent shares (*concept*)
 
 The role preamble, the workflow files and the style guide are the same for every agent. Put them first in each prompt so prompt caching can reuse them.
 
-### 4. Budget every step
+### 4. Budget every step (*concept; guidance only today*)
 
 | Step | Proposed token budget | On overrun |
 | --- | --- | --- |

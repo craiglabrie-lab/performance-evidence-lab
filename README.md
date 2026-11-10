@@ -17,7 +17,8 @@ It is built on a lesson from 17 years of performance testing: **before you diagn
 | Analysis workflow, nine agent role files, Claude Code sub-agent definitions | Implemented |
 | Deterministic tooling: transaction summary, p90/p95/p99, errors by type, graphs, baseline comparison, Utilization Law headroom (with tests) | Implemented |
 | Three synthetic test runs: a baseline and two scenarios, with an answer key written in advance | Implemented |
-| Recorded agent runs of the current agents, scored against the answer key | Planned: next stage |
+| Cost controls: per-agent context slices, smaller-model routing for three roles, lean handoffs ([ADR-0009](docs/decisions/0009-cost-controls.md)) | Implemented, not yet measured |
+| Recorded agent runs of the current agents, scored against the answer key | Planned: next stage, starting with test run 02 |
 | Handoff schema (draft JSON Schema included), orchestrator with checkpoints and human sign-off, agent tool contracts, cost and model routing, evaluation harness, multi-run regression tracking | Concept: [design documents](docs/concepts/README.md), each labeled as not yet implemented |
 
 All data is synthetic. Nothing has been tested on production results. The [persona review](docs/reviews/2026-11-persona-review.md) records how the repository was reviewed by a performance engineer, a performance tester and an AI engineer, and the status of each point.
@@ -71,7 +72,7 @@ flowchart TD
     Lead2 --> Author["Test Report Author<br/>test summary report"]
 ```
 
-Each role is a Claude Code sub-agent ([`.claude/agents/`](.claude/agents/)) with its own context and a fixed tool list. Results pass forward as numbered handoff files. Every role file in [`agents/`](agents/README.md) is both a readable role description and the instructions the agent runs with.
+Each role is a Claude Code sub-agent ([`.claude/agents/`](.claude/agents/)) with its own context, a fixed tool list and an assigned model, and it receives only its slice of the computed results summary. Results pass forward as numbered handoff files. Every role file in [`agents/`](agents/README.md) is both a readable role description and the instructions the agent runs with.
 
 ## The four results in every test summary
 
