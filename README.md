@@ -158,7 +158,7 @@ tests/            tests for the deterministic tooling
 
 ## About
 
-Built by **Craig Labrie**, a performance engineering lead and product owner with 17 years in performance testing: more than 200 performance test projects and about 1,000 test scenarios, and later building and leading a performance testing team whose test scenarios, analysis and reports he reviewed. Its sibling project, [Hive & Seek](https://github.com/craiglabrie-lab/hive-and-seek), applies the same agent pattern to job searching. [Origins](docs/origins.md) describes where the workflow came from.
+Built by **Craig Labrie**, a performance engineering lead and product owner with 17 years in performance testing: more than 200 performance test projects and about 1,000 test scenarios. He hired, trained and led his own performance test team of nearly 20 performance testers. Its sibling project, [Hive & Seek](https://github.com/craiglabrie-lab/hive-and-seek), applies the same agent pattern to job searching. [Origins](docs/origins.md) describes where the workflow came from.
 
 ## License
 
