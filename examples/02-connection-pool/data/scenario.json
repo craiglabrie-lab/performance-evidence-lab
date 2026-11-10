@@ -10,6 +10,22 @@
     "duration_min": 45,
     "previous_run": "SYN-RUN-001"
   },
+  "test_type": "load",
+  "build_under_test": {
+    "application": "syn-shop",
+    "version": "4.13.0",
+    "changes_since_baseline": [
+      "search ranking update",
+      "front-end bundle changes"
+    ]
+  },
+  "baseline": {
+    "run_id": "SYN-RUN-000",
+    "build": "4.12.0",
+    "data_dir": "../../00-baseline/data",
+    "regression_threshold_pct": 10,
+    "note": "Last accepted load test at 500 Vusers, previous release."
+  },
   "test_objective": "Can the checkout journey support 500 concurrent users at 90+ transactions/second with checkout p95 at or under 2.0 seconds?",
   "workload_model": {
     "users": {
@@ -67,6 +83,35 @@
       }
     ]
   },
+  "environment_parity": {
+    "app_tier": "2 app nodes; production runs 6 of the same size (one-third scale)",
+    "database": "production-size copy, refreshed 2026-09-15; same instance class as production",
+    "payment_provider": "shared third-party sandbox; production uses the provider's live service",
+    "cache": "warmed by a 10-minute ramp-up; no separate warm-up run"
+  },
+  "scripts": [
+    {
+      "name": "checkout_journey",
+      "version": "1.8",
+      "transactions": [
+        "search",
+        "add_to_cart",
+        "checkout"
+      ],
+      "content_checks": "every step checks for expected page text",
+      "correlation": "validated in a single-Vuser run on 2026-09-30"
+    }
+  ],
+  "test_data": {
+    "customers": "SYN-CUST-50K (50,000 accounts, reused across iterations)",
+    "products": "SYN-SKU-5K (5,000 in-stock SKUs)"
+  },
+  "runtime_settings": {
+    "think_time": "fixed 3 s before each step",
+    "pacing": "fixed 20 s",
+    "client_timeout_s": 30,
+    "abort_on_error": true
+  },
   "load_generators": {
     "LG1": {
       "vcpu": 4,
@@ -81,9 +126,15 @@
   "sources": [
     {
       "file": "transactions.csv",
-      "description": "Per-minute, per-generator transaction results exported from the load tool",
+      "description": "Per-minute, per-generator transaction results exported from the load tool, with failures split into client timeouts, HTTP 5xx and content check failures",
       "timestamps": "UTC",
-      "known_limitations": "p95 values are per generator per minute; they cannot be averaged into a run-level p95."
+      "known_limitations": "Percentiles are per generator per minute; they cannot be averaged into run-level percentiles."
+    },
+    {
+      "file": "transaction_summary.csv",
+      "description": "Run-level transaction summary for the steady state, computed by the load tool from individual response times (passed transactions only)",
+      "timestamps": "UTC",
+      "known_limitations": ""
     },
     {
       "file": "vusers.csv",
@@ -128,5 +179,5 @@
       "known_limitations": "Sample, not every request."
     }
   ],
-  "run_notes": "Rerun of SYN-RUN-001 after LG2 log level was changed to standard. No application or database changes were made between runs."
+  "run_notes": "Retest of SYN-RUN-001 after LG2 log level was changed to standard. No application or database changes were made between runs."
 }

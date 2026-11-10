@@ -13,6 +13,7 @@ import generate_synthetic  # noqa: E402
 
 S1 = ROOT / "examples" / "01-generator-saturation" / "data"
 S2 = ROOT / "examples" / "02-connection-pool" / "data"
+S0 = ROOT / "examples" / "00-baseline" / "data"
 
 
 def inv(facts, name):
@@ -20,9 +21,9 @@ def inv(facts, name):
 
 
 def test_fixtures_are_reproducible(tmp_path):
-    generate_synthetic.scenario_checkout_generator(tmp_path / "s1")
-    generate_synthetic.scenario_checkout_pool(tmp_path / "s2")
-    for committed, fresh in ((S1, tmp_path / "s1"), (S2, tmp_path / "s2")):
+    generate_synthetic.generate_all(tmp_path)
+    for name in ("00-baseline", "01-generator-saturation", "02-connection-pool"):
+        committed, fresh = ROOT / "examples" / name / "data", tmp_path / name / "data"
         names = sorted(p.name for p in committed.iterdir())
         assert names == sorted(p.name for p in fresh.iterdir())
         match, mismatch, errors = filecmp.cmpfiles(committed, fresh, names, shallow=False)
@@ -72,3 +73,39 @@ def test_trace_breakdown_shows_connection_held_during_payment_call():
     traces = analyze.analyze(S2)["traces"]
     assert traces["min 19-39"]["payment_share_of_connection_hold_pct"] > 90
     assert traces["min 10-18"]["median_pool_wait_ms"] == 0
+
+
+def test_failure_types_add_up_to_failed():
+    for row in analyze.load_csv(S1 / "transactions.csv") + analyze.load_csv(S2 / "transactions.csv"):
+        parts = int(row["failed_timeout"]) + int(row["failed_http_5xx"]) + int(row["failed_content_check"])
+        assert parts == int(row["failed"])
+
+
+def test_transaction_summary_matches_per_minute_counts():
+    rows = analyze.load_csv(S2 / "transactions.csv")
+    for r in analyze.load_csv(S2 / "transaction_summary.csv"):
+        per_min = [x for x in rows if 10 <= int(x["elapsed_min"]) <= 39 and x["transaction"] == r["transaction"]
+                   and (r["generator"] == "ALL" or x["generator"] == r["generator"])]
+        assert sum(int(x["count"]) for x in per_min) == int(r["count"])
+        assert sum(int(x["failed"]) for x in per_min) == int(r["failed"])
+
+
+def test_baseline_comparison_flags_regression_only_when_slower():
+    s0, s2 = analyze.analyze(S0), analyze.analyze(S2)
+    assert s0["baseline"] is None
+    assert all(t["regression"] for t in s2["baseline"]["transactions"])
+    assert s2["baseline"]["steady_tps"]["change_pct"] < 0
+
+
+def test_capacity_uses_utilization_law():
+    cap = analyze.analyze(S0)["capacity"]["windows"]["min 10-39"]
+    app1 = cap["app1"]
+    assert abs(app1["cpu_pct_per_tps"] * app1["tps_handled"] - app1["mean_cpu_pct"]) < 0.2
+    assert abs(app1["tps_at_80pct_cpu"] - 80 / app1["cpu_pct_per_tps"]) < 0.2
+
+
+def test_graphs_are_written(tmp_path):
+    facts = analyze.analyze(S1)
+    made = analyze.write_charts(facts, tmp_path)
+    assert {name for _, name in made} == {"running-vusers.svg", "throughput.svg", "checkout-p95.svg", "errors.svg"}
+    assert all((tmp_path / name).read_text().startswith("<svg") for _, name in made)

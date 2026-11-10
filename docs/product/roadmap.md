@@ -2,7 +2,9 @@
 
 | Stage | Outcome | Status |
 | --- | --- | --- |
-| Workflow and agents | Analysis workflow, nine agent role files, deterministic tooling with tests, style guide | Done |
+| Workflow and agents | Analysis workflow, nine agent role files and Claude Code sub-agents, deterministic tooling with tests, style guide | Done |
+| Tester and engineer views | Transaction summary, p90/p95/p99, errors by type, standard graphs, baseline comparison, Utilization Law headroom, execution metadata | Done |
+| Concept documents | Handoff schema, agent tool contracts, orchestrator design (checkpoints, resume, human sign-off), cost and model routing, evaluation harness, baseline and regression design. Each labeled as a concept | Next |
 | Recorded example runs | Both synthetic test runs analyzed by the agent team, every handoff recorded, scored against the answer key, and compared with a single-prompt baseline | Next |
 | Repeatability | Several runs per test run, to measure how much the findings vary | Planned |
 | Harder test runs | No single clear bottleneck, conflicting metrics, a valid run that passes every SLA, a monitoring gap on the tier that is the bottleneck | Planned |

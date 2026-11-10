@@ -1,6 +1,6 @@
 # ADR-0002: Nine agents, modeled on a performance test team
 
-**Decision:** The workflow uses nine agents: Performance Test Lead (orchestrator), Test Data & Monitoring Analyst, Test Validity Analyst, Performance Analyst, Application & APM Engineer, Database Performance Engineer, Infrastructure & Network Engineer, Peer Reviewer and Report Author.
+**Decision:** The workflow uses nine agents: Performance Test Lead (orchestrator), Results & Monitoring Analyst, Test Execution Analyst, Results Analyst, Application & APM Engineer, Database Performance Engineer, Infrastructure & Network Engineer, Peer Reviewer and Test Report Author.
 
 **Why:** These are the people a performance team brings into a results analysis. Each agent has one responsibility and can be held to it. Separate application, database and infrastructure engineers mean each tier is either identified as the bottleneck or eliminated with its own metrics, instead of a general "probably the database".
 

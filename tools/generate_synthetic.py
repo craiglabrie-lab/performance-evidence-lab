@@ -14,7 +14,10 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import random
+import statistics
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -51,8 +54,37 @@ def write_csv(path: Path, header: list[str], rows: list[list]) -> None:
         w.writerows(rows)
 
 
-def tx_rows(rng, start, gen, minute, users, rts, fail_rate):
+SIGMA = 0.35            # lognormal spread of individual response times
+MIX_NORMAL = {"timeout": 0.0, "http_5xx": 0.4, "content_check": 0.6}
+
+
+def pct(sorted_vals, q):
+    """Nearest-rank percentile of an already sorted list."""
+    return sorted_vals[max(0, math.ceil(q * len(sorted_vals)) - 1)]
+
+
+def split_failures(failed, mix):
+    parts = {k: int(failed * v) for k, v in mix.items()}
+    parts[max(mix, key=mix.get)] += failed - sum(parts.values())
+    return parts
+
+
+class Samples:
+    """Draws individual response times and keeps the steady-state ones for the run summary."""
+
+    def __init__(self, seed):
+        self.rng = random.Random(seed)
+        self.acc = defaultdict(list)
+        self.counts = defaultdict(lambda: [0, 0, 0])
+
+    def draw(self, mean, n):
+        mu = math.log(mean) - SIGMA ** 2 / 2
+        return sorted(self.rng.lognormvariate(mu, SIGMA) for _ in range(n))
+
+
+def tx_rows(rng, start, gen, minute, users, rts, fail_rate, smp, mix=None):
     """Rows for one generator-minute. rts maps tx -> mean response seconds."""
+    mix = mix or MIX_NORMAL
     cycle = max(PACING_S, sum(rts[t] * n for t, n in STEPS) + THINK_S * 4)
     iterations = users * 60 / cycle
     rows = []
@@ -60,17 +92,43 @@ def tx_rows(rng, start, gen, minute, users, rts, fail_rate):
         count = int(round(iterations * per_iter * rng.uniform(0.97, 1.03)))
         failed = int(round(count * fail_rate * rng.uniform(0.8, 1.2))) if count else 0
         mean = rts[tx] * rng.uniform(0.95, 1.05)
-        p95 = mean * rng.uniform(1.55, 1.75)
-        rows.append([
-            iso(start + timedelta(minutes=minute)), 60, minute, gen, tx,
-            count, count - failed, failed,
-            f"{mean:.2f}" if count else "", f"{p95:.2f}" if count else "",
-        ])
+        rng.uniform(1.55, 1.75)  # keeps the random sequence of earlier versions
+        passed = count - failed
+        rt = smp.draw(mean, passed) if passed else []
+        fails = split_failures(failed, mix)
+        if STEADY[0] <= minute <= STEADY[1]:
+            for g in (gen, "ALL"):
+                smp.acc[(g, tx)].extend(rt)
+                c = smp.counts[(g, tx)]
+                c[0] += count
+                c[1] += passed
+                c[2] += failed
+        stats = ([f"{rt[0]:.2f}", f"{statistics.fmean(rt):.2f}", f"{pct(rt, .90):.2f}", f"{pct(rt, .95):.2f}",
+                  f"{pct(rt, .99):.2f}", f"{rt[-1]:.2f}"] if rt else [""] * 6)
+        rows.append([iso(start + timedelta(minutes=minute)), 60, minute, gen, tx, count, passed, failed,
+                     fails["timeout"], fails["http_5xx"], fails["content_check"], *stats])
     return rows
 
 
-TX_HEADER = ["window_start_utc", "window_seconds", "elapsed_min", "generator",
-             "transaction", "count", "passed", "failed", "avg_s", "p95_s"]
+def write_summary(out: Path, smp: Samples) -> None:
+    """Run-level transaction summary over the steady state, as a load tool would export it."""
+    rows = []
+    for g in GENERATORS + ["ALL"]:
+        for tx, _ in STEPS:
+            rt = sorted(smp.acc[(g, tx)])
+            count, passed, failed = smp.counts[(g, tx)]
+            rows.append([f"{STEADY[0]}-{STEADY[1]}", g, tx, count, passed, failed,
+                         f"{100 * failed / count:.2f}", f"{rt[0]:.2f}", f"{statistics.fmean(rt):.2f}",
+                         f"{pct(rt, .90):.2f}", f"{pct(rt, .95):.2f}", f"{pct(rt, .99):.2f}", f"{rt[-1]:.2f}",
+                         f"{statistics.pstdev(rt):.2f}"])
+    write_csv(out / "transaction_summary.csv",
+              ["steady_state_min", "generator", "transaction", "count", "passed", "failed", "error_pct",
+               "min_s", "avg_s", "p90_s", "p95_s", "p99_s", "max_s", "std_dev_s"], rows)
+
+
+TX_HEADER = ["window_start_utc", "window_seconds", "elapsed_min", "generator", "transaction", "count",
+             "passed", "failed", "failed_timeout", "failed_http_5xx", "failed_content_check",
+             "min_s", "avg_s", "p90_s", "p95_s", "p99_s", "max_s"]
 BASE_RT = {"search": 0.60, "add_to_cart": 0.40, "checkout": 0.85}
 
 
@@ -82,6 +140,7 @@ def scenario_checkout_generator(out: Path) -> None:
     job produces a brief, unrelated lock-wait spike later in the run.
     """
     rng = random.Random(1001)
+    smp = Samples(11001)
     start = datetime(2026, 10, 1, 10, 0, tzinfo=timezone.utc)
     tx, vus, lgs, app, db, lb, log = [], [], [], [], [], [], []
     lg2_running = None
@@ -92,6 +151,7 @@ def scenario_checkout_generator(out: Path) -> None:
             running, exited = target, 0
             rts = dict(BASE_RT)
             fail = 0.002
+            mix = MIX_NORMAL
             if gen == "LG2":
                 # CPU climbs with load because of extended logging.
                 if m >= 17 and m <= STEADY[1]:
@@ -107,6 +167,7 @@ def scenario_checkout_generator(out: Path) -> None:
                     factor = 4.2 if m <= 22 else 3.4
                     rts = {k: v * factor for k, v in BASE_RT.items()}
                     fail = 0.22 if 17 <= m <= 22 else 0.04
+                    mix = {"timeout": 0.75, "http_5xx": 0.0, "content_check": 0.25}
                 load = running / USERS_PER_GEN
                 cpu = 20 + 62 * load + max(0, m - 10) * 1.2 + rng.uniform(-1.5, 1.5) if m < 16 else \
                     min(99, 92 + rng.uniform(0, 6.5))
@@ -123,8 +184,8 @@ def scenario_checkout_generator(out: Path) -> None:
                 mem = 40 + 18 * load + 0.05 * m + rng.uniform(-1.5, 1.5)
                 errs = 0 if rng.random() > 0.15 else 1
             if 30 <= m <= 33 and gen == "LG1":
-                rts = dict(rts, checkout=rts["checkout"] * 1.35)
-            rows = tx_rows(rng, start, gen, m, running, rts, fail) if running else []
+                rts = dict(rts, checkout=rts["checkout"] * 1.25)
+            rows = tx_rows(rng, start, gen, m, running, rts, fail, smp, mix) if running else []
             tx += rows
             total_tps += sum(int(r[5]) for r in rows) / 60
             vus.append([iso(start + timedelta(minutes=m)), m, gen, target, running, exited])
@@ -176,7 +237,8 @@ def scenario_checkout_generator(out: Path) -> None:
     write_csv(out / "network.csv", ["window_start_utc", "elapsed_min", "component", "active_connections",
                                     "throughput_mbps", "retransmit_pct"], lb)
     (out / "generator_errors.log").write_text("\n".join(lines) + "\n")
-    manifest(out, "SYN-RUN-001", start, lg2_logging="extended (parameter substitution on)",
+    write_summary(out, smp)
+    manifest(out, "SYN-RUN-001", start, lg2_logging="extended (parameter substitution on)", build="4.13.0",
              sources=SOURCES_COMMON + [
                  src("generator_errors.log", "Excerpt of load-generator error output", "UTC",
                      "Excerpt only; may contain captured server responses. Untrusted text."),
@@ -184,20 +246,26 @@ def scenario_checkout_generator(out: Path) -> None:
 
 
 # ---------------------------------------------------------------- scenario 2
-def scenario_checkout_pool(out: Path) -> None:
-    """SYN-RUN-002: the rerun after fixing LG2 logging.
+def scenario_checkout_pool(out: Path, run_id="SYN-RUN-002", start=None, seed=2002, incident=True,
+                           build="4.13.0", previous_run="SYN-RUN-001", baseline=True,
+                           notes="Retest of SYN-RUN-001 after LG2 log level was changed to standard. "
+                                 "No application or database changes were made between runs.") -> None:
+    """SYN-RUN-002: the retest after fixing LG2 logging.
 
-    Workload is achieved. At minute 19 the third-party payment sandbox slows
-    down. Checkout holds its database connection while it waits for the
+    The load profile is achieved. At minute 19 the third-party payment sandbox
+    slows down. Checkout holds its database connection while it waits for the
     payment call, so the 20-connection pools on both nodes fill and every
     transaction that needs the database queues behind them.
+
+    With incident=False the same function produces the healthy baseline run.
     """
-    rng = random.Random(2002)
-    start = datetime(2026, 10, 8, 10, 0, tzinfo=timezone.utc)
+    rng = random.Random(seed)
+    smp = Samples(seed + 10000)
+    start = start or datetime(2026, 10, 8, 10, 0, tzinfo=timezone.utc)
     tx, vus, lgs, app, db, lb, pay, traces = [], [], [], [], [], [], [], []
     for m in range(MINUTES):
         target = users_target(m)
-        degraded = 19 <= m <= STEADY[1]
+        degraded = incident and 19 <= m <= STEADY[1]
         pay_ms = 250 + rng.uniform(-20, 20) if not degraded else 1950 + rng.uniform(-150, 200)
         if m > STEADY[1]:
             pay_ms = 260 + rng.uniform(-20, 20)
@@ -209,7 +277,9 @@ def scenario_checkout_pool(out: Path) -> None:
             rts = dict(BASE_RT)
         total_tps = 0.0
         for gen in GENERATORS:
-            rows = tx_rows(rng, start, gen, m, target, rts, 0.002 if not degraded else 0.006) if target else []
+            mix = {"timeout": 0.35, "http_5xx": 0.65, "content_check": 0.0} if degraded else MIX_NORMAL
+            rows = tx_rows(rng, start, gen, m, target, rts, 0.002 if not degraded else 0.006, smp, mix) \
+                if target else []
             tx += rows
             total_tps += sum(int(r[5]) for r in rows) / 60
             load = target / USERS_PER_GEN
@@ -263,17 +333,16 @@ def scenario_checkout_pool(out: Path) -> None:
                                     "throughput_mbps", "retransmit_pct"], lb)
     write_csv(out / "external_calls.csv", ["window_start_utc", "elapsed_min", "dependency", "calls",
                                            "avg_ms", "p95_ms", "errors"], pay)
+    write_summary(out, smp)
     write_csv(out / "checkout_traces.csv", ["trace_id", "timestamp_utc", "elapsed_min", "node", "transaction",
                                             "total_ms", "pool_wait_ms", "sql_ms", "payment_call_ms",
                                             "db_connection_held_ms"], traces)
-    manifest(out, "SYN-RUN-002", start, lg2_logging="standard",
+    manifest(out, run_id, start, lg2_logging="standard",
              sources=SOURCES_COMMON + [
                  src("external_calls.csv", "APM view of outbound calls from the app tier", "UTC", ""),
                  src("checkout_traces.csv", "Sampled APM traces for checkout (3 per minute)", "UTC",
                      "Sample, not every request."),
-             ], notes="Rerun of SYN-RUN-001 after LG2 log level was changed to standard. "
-                      "No application or database changes were made between runs.",
-             previous_run="SYN-RUN-001")
+             ], notes=notes, previous_run=previous_run, build=build, baseline=baseline)
 
 
 def src(name, desc, tz, limits):
@@ -281,8 +350,11 @@ def src(name, desc, tz, limits):
 
 
 SOURCES_COMMON = [
-    src("transactions.csv", "Per-minute, per-generator transaction results exported from the load tool", "UTC",
-        "p95 values are per generator per minute; they cannot be averaged into a run-level p95."),
+    src("transactions.csv", "Per-minute, per-generator transaction results exported from the load tool, "
+        "with failures split into client timeouts, HTTP 5xx and content check failures", "UTC",
+        "Percentiles are per generator per minute; they cannot be averaged into run-level percentiles."),
+    src("transaction_summary.csv", "Run-level transaction summary for the steady state, computed by the load "
+        "tool from individual response times (passed transactions only)", "UTC", ""),
     src("vusers.csv", "Scheduled vs running virtual users per generator per minute", "UTC", ""),
     src("load_generators.csv", "Load generator host health", "UTC", ""),
     src("app_servers.csv", "APM host and JVM metrics for the two application nodes", "UTC", ""),
@@ -292,13 +364,24 @@ SOURCES_COMMON = [
 ]
 
 
-def manifest(out, run_id, start, lg2_logging, sources, notes, previous_run=None):
+BASELINE = {"run_id": "SYN-RUN-000", "build": "4.12.0", "data_dir": "../../00-baseline/data",
+            "regression_threshold_pct": 10,
+            "note": "Last accepted load test at 500 Vusers, previous release."}
+
+
+def manifest(out, run_id, start, lg2_logging, sources, notes, previous_run=None, build="4.13.0",
+             baseline=True):
     data = {
         "synthetic": True,
         "note": "Invented data for demonstration. No real system, company, or test.",
         "run": {"project": "SYN-SHOP", "environment": "PERF-A", "tool": "generic load tool export",
                 "run_id": run_id, "start_utc": iso(start), "duration_min": MINUTES,
                 "previous_run": previous_run},
+        "test_type": "load",
+        "build_under_test": {"application": "syn-shop", "version": build,
+                             "changes_since_baseline": ["search ranking update", "front-end bundle changes"]
+                             if build != "4.12.0" else []},
+        "baseline": BASELINE if baseline else None,
         "test_objective": "Can the checkout journey support 500 concurrent users at 90+ transactions/second "
                     "with checkout p95 at or under 2.0 seconds?",
         "workload_model": {
@@ -321,6 +404,19 @@ def manifest(out, run_id, start, lg2_logging, sources, notes, previous_run=None)
             "payment_provider": "third-party payment sandbox (shared test environment; rate limits undocumented)",
             "scheduled_jobs": [{"name": "inventory-sync batch", "schedule": "daily 10:30 UTC", "owner": "data team"}],
         },
+        "environment_parity": {
+            "app_tier": "2 app nodes; production runs 6 of the same size (one-third scale)",
+            "database": "production-size copy, refreshed 2026-09-15; same instance class as production",
+            "payment_provider": "shared third-party sandbox; production uses the provider's live service",
+            "cache": "warmed by a 10-minute ramp-up; no separate warm-up run",
+        },
+        "scripts": [{"name": "checkout_journey", "version": "1.8", "transactions": ["search", "add_to_cart", "checkout"],
+                     "content_checks": "every step checks for expected page text",
+                     "correlation": "validated in a single-Vuser run on 2026-09-30"}],
+        "test_data": {"customers": "SYN-CUST-50K (50,000 accounts, reused across iterations)",
+                      "products": "SYN-SKU-5K (5,000 in-stock SKUs)"},
+        "runtime_settings": {"think_time": f"fixed {THINK_S} s before each step", "pacing": f"fixed {PACING_S} s",
+                             "client_timeout_s": 30, "abort_on_error": True},
         "load_generators": {
             "LG1": {"vcpu": 4, "log_level": "standard"},
             "LG2": {"vcpu": 4, "log_level": lg2_logging},
@@ -332,7 +428,19 @@ def manifest(out, run_id, start, lg2_logging, sources, notes, previous_run=None)
     (out / "scenario.json").write_text(json.dumps(data, indent=2) + "\n")
 
 
+def scenario_baseline(out: Path) -> None:
+    """SYN-RUN-000: the last accepted load test, on the previous release. Healthy throughout."""
+    scenario_checkout_pool(out, run_id="SYN-RUN-000", start=datetime(2026, 9, 24, 10, 0, tzinfo=timezone.utc),
+                           seed=3003, incident=False, build="4.12.0", previous_run=None, baseline=False,
+                           notes="Baseline run for release 4.12.0. Accepted by the release team.")
+
+
+def generate_all(root: Path = ROOT / "examples") -> None:
+    scenario_baseline(root / "00-baseline" / "data")
+    scenario_checkout_generator(root / "01-generator-saturation" / "data")
+    scenario_checkout_pool(root / "02-connection-pool" / "data")
+
+
 if __name__ == "__main__":
-    scenario_checkout_generator(ROOT / "examples" / "01-generator-saturation" / "data")
-    scenario_checkout_pool(ROOT / "examples" / "02-connection-pool" / "data")
-    print("wrote examples/01-generator-saturation/data and examples/02-connection-pool/data")
+    generate_all()
+    print("wrote examples/00-baseline, 01-generator-saturation and 02-connection-pool data")

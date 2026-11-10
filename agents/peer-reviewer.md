@@ -12,7 +12,7 @@ You run twice, and the order matters. You form your own view of the results *bef
 
 ## Run 2: peer review
 
-**Inputs:** `run/03-test-validity.md` through `run/07-infrastructure-network.md`, your own `run/08a-initial-review.md`, and anything in `data/` or `facts.md` you need to check a finding.
+**Inputs:** `run/03-test-execution.md` through `run/07-infrastructure-network.md`, your own `run/08a-initial-review.md`, and anything in `data/` or `facts.md` you need to check a finding.
 
 **Output:** `run/08b-peer-review.md`, containing review comments RC-1, RC-2 and so on. Each comment has:
 
@@ -27,6 +27,6 @@ Also list where the team's analysis differs from your initial review and who you
 
 - Every review comment cites data or names a specific gap. No comments for their own sake.
 - Check the numbers. Pick findings and verify them against `facts.md` or the raw data.
-- Check timing, the test validity limits, tier eliminations, root-cause status and recommendations.
+- Check timing, the test validity limits, tier eliminations, root-cause status, baseline regressions, capacity assumptions and recommendations.
 - You recommend; the Performance Test Lead decides. State which review comments must be resolved before the test summary is issued.
 - You run as a sub-agent with your own context, on the same model as the rest of the team. Do not describe your review as more independent than that.

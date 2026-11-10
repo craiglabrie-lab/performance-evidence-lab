@@ -10,6 +10,21 @@
     "duration_min": 0,
     "previous_run": ""
   },
+  "test_type": "load | stress | soak | spike",
+  "build_under_test": {
+    "application": "",
+    "version": "",
+    "changes_since_baseline": [
+      ""
+    ]
+  },
+  "baseline": {
+    "run_id": "",
+    "build": "",
+    "data_dir": "",
+    "regression_threshold_pct": 0,
+    "note": ""
+  },
   "test_objective": "",
   "workload_model": {
     "users": {
@@ -51,6 +66,33 @@
         "owner": ""
       }
     ]
+  },
+  "environment_parity": {
+    "app_tier": "",
+    "database": "",
+    "payment_provider": "",
+    "cache": ""
+  },
+  "scripts": [
+    {
+      "name": "",
+      "version": "",
+      "transactions": [
+        ""
+      ],
+      "content_checks": "",
+      "correlation": ""
+    }
+  ],
+  "test_data": {
+    "customers": "",
+    "products": ""
+  },
+  "runtime_settings": {
+    "think_time": "",
+    "pacing": "",
+    "client_timeout_s": 0,
+    "abort_on_error": false
   },
   "load_generators": {
     "LG1": {

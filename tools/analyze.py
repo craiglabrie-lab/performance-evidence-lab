@@ -12,6 +12,9 @@ What it does:
   * SLA results: per steady-state minute Pass/Fail against scenario.json
   * windowed summaries of every numeric metric, per entity
   * prompt-injection scan of text logs
+  * transaction summary, errors by type, standard graphs (SVG)
+  * capacity: Utilization Law service demand and CPU headroom per tier
+  * baseline comparison against the run named in scenario.json
   * trace breakdown (when traces exist)
 
 What it never does:
@@ -22,6 +25,7 @@ What it never does:
 Usage:
   python tools/analyze.py examples/01-generator-saturation/data
   python tools/analyze.py <data_dir> --windows 10-16 17-39 --json facts.json
+  python tools/analyze.py <data_dir> --md facts.md --charts charts
 
 Standard library only.
 """
@@ -30,6 +34,8 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
+import os
 import re
 import statistics
 from collections import defaultdict
@@ -100,7 +106,10 @@ def inventory(data_dir: Path, scenario: dict, start: datetime, tables: dict) -> 
         if not path.exists():
             out.append(item)
             continue
-        if f.endswith(".csv"):
+        if f == "transaction_summary.csv":
+            item["rows"] = len(load_csv(path))
+            item["coverage"] = {"steady state": "run-level summary"}
+        elif f.endswith(".csv"):
             rows = tables[f]
             item["rows"] = len(rows)
             times = sorted(r["_time_utc"] for r in rows if "_time_utc" in r)
@@ -274,7 +283,7 @@ def analyze(data_dir: Path, windows=None) -> dict:
     tables = {}
     for s in scenario["sources"]:
         p = data_dir / s["file"]
-        if p.suffix == ".csv" and p.exists():
+        if p.suffix == ".csv" and p.exists() and s["file"] != "transaction_summary.csv":
             rows = load_csv(p)
             add_elapsed(rows, start)
             tables[s["file"]] = rows
@@ -291,15 +300,313 @@ def analyze(data_dir: Path, windows=None) -> dict:
         "load_profile": wl, "sla_results": crit,
         "summaries": summarize(tables, wins),
         "traces": traces(tables, wins),
+        "execution": execution(scenario),
+        "transaction_summary": transaction_summary(data_dir),
+        "errors_by_type": errors_by_type(tables, wins),
+        "capacity": capacity(tables, wins),
+        "baseline": baseline_comparison(data_dir, scenario, tables),
+        "_tables": tables, "_scenario": scenario,
     }
 
 
+# ------------------------------------------------------------------ tester and engineer views
+def execution(scenario: dict) -> dict:
+    keys = ("test_type", "build_under_test", "environment_parity", "scripts", "test_data",
+            "runtime_settings", "load_generators", "baseline")
+    return {k: scenario.get(k) for k in keys if scenario.get(k) is not None}
+
+
+def transaction_summary(data_dir: Path) -> list[dict] | None:
+    path = data_dir / "transaction_summary.csv"
+    return load_csv(path) if path.exists() else None
+
+
+def errors_by_type(tables: dict, windows) -> dict | None:
+    rows = tables.get("transactions.csv", [])
+    if not rows or "failed_timeout" not in rows[0]:
+        return None
+    out = {}
+    for lo, hi in windows:
+        agg = defaultdict(lambda: {"failed": 0, "timeout": 0, "http_5xx": 0, "content_check": 0, "count": 0})
+        for r in rows:
+            if lo <= int(r["elapsed_min"]) <= hi:
+                a = agg[r["generator"]]
+                a["count"] += int(r["count"])
+                a["failed"] += int(r["failed"])
+                a["timeout"] += int(r["failed_timeout"])
+                a["http_5xx"] += int(r["failed_http_5xx"])
+                a["content_check"] += int(r["failed_content_check"])
+        out[f"min {lo}-{hi}"] = dict(agg)
+    return out
+
+
+def steady_tps(rows: list[dict], lo: int, hi: int) -> float:
+    per_min = defaultdict(int)
+    for r in rows:
+        m = int(r["elapsed_min"])
+        if lo <= m <= hi:
+            per_min[m] += int(r["count"])
+    return round(statistics.fmean(v / 60 for v in per_min.values()), 1) if per_min else None
+
+
+def capacity(tables: dict, windows) -> dict:
+    """Utilization Law (U = X * D): CPU percent per transaction/s, and the throughput at 80% CPU.
+
+    Assumes the load balancer splits traffic evenly across app nodes, CPU scales linearly
+    with throughput, and CPU is the limiting resource. Results apply to this test
+    environment only.
+    """
+    tx = tables.get("transactions.csv", [])
+    tps = defaultdict(float)
+    for r in tx:
+        tps[int(r["elapsed_min"])] += int(r["count"]) / 60
+    out = {"assumptions": "Even load balancing across app nodes; CPU scales linearly with throughput; CPU is "
+                          "the limiting resource. Applies to this test environment only.", "windows": {}}
+    for lo, hi in windows:
+        res = {}
+        mins = [m for m in tps if lo <= m <= hi and tps[m] > 0]
+        if not mins:
+            continue
+        x = statistics.fmean(tps[m] for m in mins)
+        for node in sorted({r["node"] for r in tables.get("app_servers.csv", [])}):
+            cpus = [num(r["cpu_pct"]) for r in tables["app_servers.csv"]
+                    if r["node"] == node and lo <= int(r["elapsed_min"]) <= hi]
+            if cpus:
+                u = statistics.fmean(cpus)
+                d = u / (x / 2)
+                res[node] = {"mean_cpu_pct": round(u, 1), "tps_handled": round(x / 2, 1),
+                             "cpu_pct_per_tps": round(d, 3), "tps_at_80pct_cpu": round(80 / d, 1)}
+        cpus = [num(r["cpu_pct"]) for r in tables.get("database.csv", []) if lo <= int(r["elapsed_min"]) <= hi]
+        if cpus:
+            u = statistics.fmean(cpus)
+            d = u / x
+            res["database"] = {"mean_cpu_pct": round(u, 1), "tps_handled": round(x, 1),
+                               "cpu_pct_per_tps": round(d, 3), "tps_at_80pct_cpu": round(80 / d, 1)}
+        out["windows"][f"min {lo}-{hi}"] = res
+    return out
+
+
+def baseline_comparison(data_dir: Path, scenario: dict, tables: dict) -> dict | None:
+    b = scenario.get("baseline")
+    if not b:
+        return None
+    bdir = (data_dir / b["data_dir"]).resolve()
+    base = transaction_summary(bdir)
+    cur = transaction_summary(data_dir)
+    if not base or not cur:
+        return {"run_id": b["run_id"], "available": False}
+    thr = b.get("regression_threshold_pct", 10)
+    lo, hi = scenario["workload_model"]["steady_state_min"]
+    bt = steady_tps(load_csv(bdir / "transactions.csv"), lo, hi)
+    ct = steady_tps(tables["transactions.csv"], lo, hi)
+    rows = []
+    bmap = {(r["generator"], r["transaction"]): r for r in base}
+    for r in cur:
+        if r["generator"] != "ALL":
+            continue
+        br = bmap[("ALL", r["transaction"])]
+        row = {"transaction": r["transaction"]}
+        for c in ("avg_s", "p90_s", "p95_s", "p99_s"):
+            bv, cv = float(br[c]), float(r[c])
+            row[c] = {"baseline": bv, "current": cv, "change_pct": round(100 * (cv - bv) / bv, 1)}
+        row["error_pct"] = {"baseline": float(br["error_pct"]), "current": float(r["error_pct"])}
+        row["regression"] = row["p90_s"]["change_pct"] > thr or row["p95_s"]["change_pct"] > thr
+        rows.append(row)
+    return {"run_id": b["run_id"], "build": b.get("build"), "available": True, "threshold_pct": thr,
+            "steady_tps": {"baseline": bt, "current": ct,
+                           "change_pct": round(100 * (ct - bt) / bt, 1) if bt and ct else None},
+            "transactions": rows,
+            "note": "Compares this run with the baseline run. Baseline data is never used to fill gaps "
+                    "in this run."}
+
+
+# ------------------------------------------------------------------ graphs (SVG)
+SERIES = ["#2a78d6", "#eb6834", "#1baf7a"]  # categorical slots 1-3 of the reference palette
+INK, INK2, GRID, SURFACE = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
+
+
+def svg_line_chart(path: Path, title: str, series: dict, y_label: str, threshold=None,
+                   steady=None, x_max=44) -> None:
+    W, H, L, R_, T, B = 720, 300, 56, 16, 52, 40
+    ys = [y for pts in series.values() for _, y in pts if y is not None]
+    raw = max(ys + ([threshold[0]] if threshold else [])) * 1.08 or 1
+    mag = 10 ** math.floor(math.log10(raw / 4))
+    step = next(m * mag for m in (1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10) if m * mag * 4 >= raw)
+    y_max = step * 4
+    sx = lambda x: L + (W - L - R_) * x / x_max
+    sy = lambda y: H - B - (H - T - B) * y / y_max
+    o = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
+         f'font-family="system-ui, -apple-system, Segoe UI, sans-serif" role="img" aria-label="{title}">',
+         f'<rect width="{W}" height="{H}" fill="{SURFACE}"/>',
+         f'<text x="{L}" y="20" font-size="14" font-weight="600" fill="{INK}">{title}</text>']
+    for i in range(5):
+        v = y_max * i / 4
+        o.append(f'<line x1="{L}" x2="{W - R_}" y1="{sy(v):.1f}" y2="{sy(v):.1f}" stroke="{GRID}" stroke-width="1"/>')
+        o.append(f'<text x="{L - 6}" y="{sy(v) + 4:.1f}" font-size="11" fill="{INK2}" text-anchor="end">{v:g}</text>')
+    for x in range(0, x_max + 1, 5):
+        o.append(f'<text x="{sx(x):.1f}" y="{H - B + 16}" font-size="11" fill="{INK2}" text-anchor="middle">{x}</text>')
+    o.append(f'<text x="{(L + W - R_) / 2}" y="{H - 6}" font-size="11" fill="{INK2}" text-anchor="middle">Elapsed minute</text>')
+    o.append(f'<text x="14" y="{(T + H - B) / 2}" font-size="11" fill="{INK2}" text-anchor="middle" '
+             f'transform="rotate(-90 14 {(T + H - B) / 2})">{y_label}</text>')
+    if steady:
+        for x, lab in ((steady[0], "steady state starts"), (steady[1], "ends")):
+            o.append(f'<line x1="{sx(x):.1f}" x2="{sx(x):.1f}" y1="{T}" y2="{H - B}" stroke="{INK2}" '
+                     f'stroke-width="1" stroke-dasharray="2 3"/>')
+            o.append(f'<text x="{sx(x) + 4:.1f}" y="{T + 10}" font-size="10" fill="{INK2}">{lab}</text>')
+    if threshold:
+        o.append(f'<line x1="{L}" x2="{W - R_}" y1="{sy(threshold[0]):.1f}" y2="{sy(threshold[0]):.1f}" '
+                 f'stroke="{INK}" stroke-width="1.5" stroke-dasharray="6 4"/>')
+        o.append(f'<text x="{W - R_ - 4}" y="{sy(threshold[0]) - 5:.1f}" font-size="11" fill="{INK}" '
+                 f'text-anchor="end">{threshold[1]}</text>')
+    lx = L
+    for i, (name, pts) in enumerate(series.items()):
+        c = SERIES[i % len(SERIES)]
+        segs, cur = [], []
+        for x, y in pts:
+            if y is None:
+                if cur:
+                    segs.append(cur)
+                cur = []
+            else:
+                cur.append(f"{sx(x):.1f},{sy(y):.1f}")
+        if cur:
+            segs.append(cur)
+        for sg in segs:
+            o.append(f'<polyline points="{" ".join(sg)}" fill="none" stroke="{c}" stroke-width="2" '
+                     f'stroke-linejoin="round" stroke-linecap="round"/>')
+        o.append(f'<rect x="{lx}" y="30" width="12" height="3" rx="1.5" fill="{c}"/>')
+        o.append(f'<text x="{lx + 16}" y="35" font-size="11" fill="{INK}">{name}</text>')
+        lx += 24 + 7 * len(name)
+    o.append("</svg>")
+    path.write_text("\n".join(o) + "\n")
+
+
+def write_charts(f: dict, out_dir: Path) -> list[tuple[str, str]]:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    t = f["_tables"]
+    sc = f["_scenario"]
+    steady = sc["workload_model"]["steady_state_min"]
+    gens = sorted({r["generator"] for r in t["vusers.csv"]})
+    made = []
+
+    def by_gen(rows, col, gen, tx=None, agg=False):
+        d = defaultdict(float) if agg else {}
+        for r in rows:
+            if r["generator"] == gen and (tx is None or r["transaction"] == tx):
+                v = num(r[col])
+                if agg:
+                    d[int(r["elapsed_min"])] += v or 0
+                else:
+                    d[int(r["elapsed_min"])] = v
+        return sorted(d.items())
+
+    charts = [
+        ("running-vusers.svg", "Running Vusers by load generator",
+         {g: by_gen(t["vusers.csv"], "running_vusers", g) for g in gens}, "Vusers", None),
+        ("throughput.svg", "Throughput (all transactions)",
+         {"Total TPS": [(m["elapsed_min"], m["tps"]) for m in f["load_profile"]["minutes"]]}, "Transactions/s",
+         (90, "SLA-2: 90 TPS")),
+        ("checkout-p95.svg", "Checkout p95 response time by load generator",
+         {g: by_gen(t["transactions.csv"], "p95_s", g, "checkout") for g in gens}, "Seconds",
+         (2.0, "SLA-1: 2.0 s")),
+    ]
+    if t["transactions.csv"] and "failed_timeout" in t["transactions.csv"][0]:
+        err = {}
+        for col, name in (("failed_timeout", "Client timeouts"), ("failed_http_5xx", "HTTP 5xx"),
+                          ("failed_content_check", "Content check failures")):
+            d = defaultdict(int)
+            for r in t["transactions.csv"]:
+                d[int(r["elapsed_min"])] += int(r[col])
+            err[name] = sorted(d.items())
+        charts.append(("errors.svg", "Failed transactions per minute by type", err, "Failures/minute", None))
+    for name, title, series, ylab, thr in charts:
+        svg_line_chart(out_dir / name, title, series, ylab, threshold=thr, steady=steady)
+        made.append((title, name))
+    return made
+
+
 # ------------------------------------------------------------------ output
-def to_markdown(f: dict) -> str:
+def overview_markdown(f: dict, charts=None) -> list[str]:
+    L = []
+    ex = f.get("execution") or {}
+    if ex:
+        b = ex.get("build_under_test", {})
+        L += ["## Test run overview", "", "| Item | Value |", "| --- | --- |",
+              f"| Test type | {ex.get('test_type', 'not stated')} |",
+              f"| Build under test | {b.get('application', '')} {b.get('version', '')} |",
+              f"| Changes since baseline | {', '.join(b.get('changes_since_baseline') or []) or 'none listed'} |"]
+        bl = ex.get("baseline")
+        L.append(f"| Baseline run | {bl['run_id']} (build {bl.get('build')}) |" if bl else "| Baseline run | none |")
+        for k, v in (ex.get("environment_parity") or {}).items():
+            L.append(f"| Environment parity: {k.replace('_', ' ')} | {v} |")
+        for k, v in (ex.get("runtime_settings") or {}).items():
+            L.append(f"| Runtime setting: {k.replace('_', ' ')} | {v} |")
+        for g, v in (ex.get("load_generators") or {}).items():
+            if isinstance(v, dict):
+                L.append(f"| {g} | {v.get('vcpu')} vCPU, log level {v.get('log_level')} |")
+        for sc in ex.get("scripts") or []:
+            L.append(f"| Script | {sc['name']} v{sc['version']}: {sc.get('content_checks', '')}; "
+                     f"correlation {sc.get('correlation', '')} |")
+        for k, v in (ex.get("test_data") or {}).items():
+            L.append(f"| Test data: {k} | {v} |")
+        L.append("")
+    ts = f.get("transaction_summary")
+    if ts:
+        L += ["## Transaction summary (steady state)", "",
+              "From `transaction_summary.csv`, the load tool's run-level summary. Response times are for passed "
+              "transactions, in seconds.", "",
+              "| Load generator | Transaction | Count | Passed | Failed | Error % | Min | Avg | p90 | p95 | p99 | Max | Std dev |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+        for r in ts:
+            L.append(f"| {r['generator']} | {r['transaction']} | {r['count']} | {r['passed']} | {r['failed']} | "
+                     f"{r['error_pct']} | {r['min_s']} | {r['avg_s']} | {r['p90_s']} | {r['p95_s']} | {r['p99_s']} | "
+                     f"{r['max_s']} | {r['std_dev_s']} |")
+        L.append("")
+    if charts:
+        L += ["## Graphs", ""]
+        L += [f"![{title}]({path})" for title, path in charts]
+        L.append("")
+    bc = f.get("baseline")
+    if bc and bc.get("available"):
+        L += [f"## Baseline comparison: {bc['run_id']} (build {bc['build']})", "",
+              f"{bc['note']} A transaction is flagged when p90 or p95 is more than {bc['threshold_pct']}% "
+              "slower than the baseline.", "",
+              f"Steady-state throughput: {bc['steady_tps']['current']} TPS against {bc['steady_tps']['baseline']} TPS "
+              f"in the baseline ({bc['steady_tps']['change_pct']}%).", "",
+              "| Transaction | Avg (base → now) | p90 (base → now) | p95 (base → now) | p99 (base → now) | Error % (base → now) | Regression |",
+              "| --- | --- | --- | --- | --- | --- | --- |"]
+        for r in bc["transactions"]:
+            cells = [f"{r[c]['baseline']} → {r[c]['current']} ({r[c]['change_pct']:+}%)" for c in ("avg_s", "p90_s", "p95_s", "p99_s")]
+            L.append(f"| {r['transaction']} | " + " | ".join(cells) +
+                     f" | {r['error_pct']['baseline']} → {r['error_pct']['current']} | {'YES' if r['regression'] else 'no'} |")
+        L.append("")
+    eb = f.get("errors_by_type")
+    if eb:
+        L += ["## Errors by type", "", "| Window | Load generator | Transactions | Failed | Client timeouts | HTTP 5xx | Content check failures |",
+              "| --- | --- | --- | --- | --- | --- | --- |"]
+        for w, gens in eb.items():
+            for g, a in sorted(gens.items()):
+                L.append(f"| {w} | {g} | {a['count']} | {a['failed']} | {a['timeout']} | {a['http_5xx']} | {a['content_check']} |")
+        L.append("")
+    cap = f.get("capacity")
+    if cap and cap["windows"]:
+        L += ["## Capacity: Utilization Law", "",
+              "Service demand as CPU % per transaction/s (U = X × D), and the throughput each tier could handle "
+              f"at 80% CPU. Assumptions: {cap['assumptions']}", "",
+              "| Window | Tier | Mean CPU % | TPS handled | CPU % per TPS | TPS at 80% CPU |", "| --- | --- | --- | --- | --- | --- |"]
+        for w, tiers in cap["windows"].items():
+            for tier, v in tiers.items():
+                L.append(f"| {w} | {tier} | {v['mean_cpu_pct']} | {v['tps_handled']} | {v['cpu_pct_per_tps']} | {v['tps_at_80pct_cpu']} |")
+        L.append("")
+    return L
+
+
+def to_markdown(f: dict, charts=None) -> str:
     L = [f"# Computed results summary — {f['run']['run_id']}", "",
          f"Generated by `{f['generated_by']}`. Every number here is calculated from the raw data files.", "",
-         f"**Test objective:** {f['test_objective']}", "", f"**Windows:** {', '.join(f['windows'])} — {f['window_rule']}", "",
-         "## Data inventory", "", "| File | Rows/lines | UTC range | Coverage | Missing minutes | Notes |",
+         f"**Test objective:** {f['test_objective']}", "", f"**Windows:** {', '.join(f['windows'])} — {f['window_rule']}", ""]
+    L += overview_markdown(f, charts)
+    L += ["## Data inventory", "", "| File | Rows/lines | UTC range | Coverage | Missing minutes | Notes |",
          "| --- | --- | --- | --- | --- | --- |"]
     for i in f["inventory"]:
         notes = "; ".join(x for x in [i.get("normalization", ""), i.get("limitations", "")] if x)
@@ -363,12 +670,20 @@ def main():
     ap.add_argument("--windows", nargs="*", help="elapsed-minute windows like 10-16 17-39")
     ap.add_argument("--json", type=Path, help="also write the facts as JSON")
     ap.add_argument("--md", type=Path, help="write markdown to this file instead of stdout")
+    ap.add_argument("--charts", type=Path, help="write SVG graphs to this folder (linked from the markdown)")
     args = ap.parse_args()
     wins = [tuple(int(x) for x in w.split("-")) for w in args.windows] if args.windows else None
     facts = analyze(args.data_dir, wins)
-    md = to_markdown(facts)
+    charts = None
+    if args.charts:
+        made = write_charts(facts, args.charts)
+        base = args.md.parent if args.md else Path.cwd()
+        rel = os.path.relpath(args.charts, base)
+        charts = [(title, f"{rel}/{name}") for title, name in made]
+    md = to_markdown(facts, charts)
     if args.json:
-        args.json.write_text(json.dumps(facts, indent=2, default=str) + "\n")
+        public = {k: v for k, v in facts.items() if not k.startswith("_")}
+        args.json.write_text(json.dumps(public, indent=2, default=str) + "\n")
     if args.md:
         args.md.write_text(md)
     else:

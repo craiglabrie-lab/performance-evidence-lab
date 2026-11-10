@@ -16,14 +16,14 @@ How everything in this repository is written: documentation, agent role files an
 | Agent | File |
 | --- | --- |
 | Performance Test Lead (orchestrator) | `agents/performance-test-lead.md` |
-| Test Data & Monitoring Analyst | `agents/test-data-analyst.md` |
-| Test Validity Analyst | `agents/test-validity-analyst.md` |
-| Performance Analyst | `agents/performance-analyst.md` |
+| Results & Monitoring Analyst | `agents/results-monitoring-analyst.md` |
+| Test Execution Analyst | `agents/test-execution-analyst.md` |
+| Results Analyst | `agents/results-analyst.md` |
 | Application & APM Engineer | `agents/application-apm-engineer.md` |
 | Database Performance Engineer | `agents/database-engineer.md` |
 | Infrastructure & Network Engineer | `agents/infrastructure-network-engineer.md` |
 | Peer Reviewer (reviewer agent) | `agents/peer-reviewer.md` |
-| Report Author | `agents/report-author.md` |
+| Test Report Author | `agents/test-report-author.md` |
 
 ## Workflow stages
 
@@ -69,11 +69,11 @@ How everything in this repository is written: documentation, agent role files an
 
 | Prefix | Record | Created by |
 | --- | --- | --- |
-| DATA- | Data inventory item | Test Data & Monitoring Analyst |
-| GAP- | Data or monitoring gap | Test Data & Monitoring Analyst |
-| VAL- | Test validity result | Test Validity Analyst |
-| OBS- | Observation | Performance Analyst, engineers |
-| DW- | Degradation window | Performance Analyst |
+| DATA- | Data inventory item | Results & Monitoring Analyst |
+| GAP- | Data or monitoring gap | Results & Monitoring Analyst |
+| VAL- | Test validity result | Test Execution Analyst |
+| OBS- | Observation | Results Analyst, engineers |
+| DW- | Degradation window | Results Analyst |
 | HYP- | Bottleneck hypothesis | Engineers |
 | RC- | Review comment | Peer Reviewer |
 | F- | Finding | Performance Test Lead |

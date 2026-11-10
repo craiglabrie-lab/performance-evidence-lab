@@ -4,11 +4,11 @@ Agents link their work through short record IDs, so every finding in the test su
 
 | Prefix | Record | Created by | Example |
 | --- | --- | --- | --- |
-| DATA- | Data inventory item: a file, or a slice of one | Test Data & Monitoring Analyst | DATA-04 `load_generators.csv`, LG2, minutes 16–39 |
-| GAP- | Data or monitoring gap | Test Data & Monitoring Analyst | GAP-01 app2 metrics missing for minutes 26–28 |
-| VAL- | Test validity result | Test Validity Analyst | VAL-1 Invalid: load profile not achieved |
-| OBS- | Observation: a measured result with its time window | Performance Analyst, engineers | OBS-03 LG2 checkout p95 5.6 s at minute 16 |
-| DW- | Degradation window handed to the engineers | Performance Analyst | DW-1 minutes 19–39, all transactions |
+| DATA- | Data inventory item: a file, or a slice of one | Results & Monitoring Analyst | DATA-04 `load_generators.csv`, LG2, minutes 16–39 |
+| GAP- | Data or monitoring gap | Results & Monitoring Analyst | GAP-01 app2 metrics missing for minutes 26–28 |
+| VAL- | Test validity result | Test Execution Analyst | VAL-1 Invalid: load profile not achieved |
+| OBS- | Observation: a measured result with its time window | Results Analyst, engineers | OBS-03 LG2 checkout p95 5.6 s at minute 16 |
+| DW- | Degradation window handed to the engineers | Results Analyst | DW-1 minutes 19–39, all transactions |
 | HYP- | Bottleneck hypothesis with root-cause status and confidence | Engineers | HYP-APP-1 DB connection held during the payment call |
 | RC- | Review comment | Peer Reviewer | RC-2 database eliminated without query-level metrics |
 | F- | Finding | Performance Test Lead | F-1 LG2 saturation distorted the load profile |
