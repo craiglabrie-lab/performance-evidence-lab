@@ -162,4 +162,7 @@ Built by **Craig Labrie**, a performance engineering lead and product owner with
 
 ## License
 
-[MIT](LICENSE) © 2026 Craig Labrie.
+Released under the [MIT License](LICENSE), © 2026 Craig Labrie. You are free to use, adapt and share the analysis workflow, agent role files, tooling and synthetic test data, with attribution.
+
+- All test data in this repository is synthetic. No real systems, companies or test results are included.
+- Product names mentioned in the documentation are for context only and do not imply endorsement.
